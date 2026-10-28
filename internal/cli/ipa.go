@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/RevylAI/greenlight/internal/ipa"
+	"github.com/RandyVentures/greenlight/internal/ipa"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -86,7 +86,7 @@ func runIPA(cmd *cobra.Command, args []string) error {
 	bold := color.New(color.Bold)
 
 	if len(criticals) > 0 {
-		red.Println("  CRITICAL — Will be rejected")
+		red.Println("  CRITICAL — Fix before submitting")
 		fmt.Println()
 		for _, f := range criticals {
 			red.Fprint(os.Stdout, "  [CRITICAL] ")
@@ -152,7 +152,7 @@ func printIPAFooter(criticals, warns, infos int, elapsed time.Duration) {
 	fmt.Println()
 
 	if criticals == 0 {
-		green.Fprint(os.Stdout, "  GREENLIT")
+		green.Fprint(os.Stdout, "  NO BLOCKERS FOUND")
 		fmt.Fprint(os.Stdout, " — no critical issues in binary")
 	} else {
 		red.Fprint(os.Stdout, "  NOT READY")
@@ -176,15 +176,7 @@ func printIPAFooter(criticals, warns, infos int, elapsed time.Duration) {
 
 	dim.Fprintf(os.Stdout, "  completed in %s\n", elapsed.Round(time.Millisecond))
 
-	fmt.Println()
-	dim.Fprintln(os.Stdout, "  ─────────────────────────────────────────────")
-	fmt.Fprint(os.Stdout, "  Built by ")
-	purple.Fprint(os.Stdout, "Revyl")
-	fmt.Fprintln(os.Stdout, " — the mobile reliability platform")
-	dim.Fprintln(os.Stdout, "  Catch more than rejections. Catch bugs.")
-	fmt.Fprint(os.Stdout, "  ")
-	color.New(color.Underline).Fprintln(os.Stdout, "https://revyl.com")
-	fmt.Println()
+	fmt.Fprintln(os.Stdout, "\n  RandyVentures fork · based on RevylAI/greenlight (MIT)")
 
 	return
 }

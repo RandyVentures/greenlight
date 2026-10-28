@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/RevylAI/greenlight/internal/cli"
+	"github.com/RandyVentures/greenlight/internal/cli"
 )
 
 var version = "dev"

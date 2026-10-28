@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RevylAI/greenlight/internal/preflight"
-	"github.com/RevylAI/greenlight/internal/sarif"
-	"github.com/RevylAI/greenlight/internal/verify"
+	"github.com/RandyVentures/greenlight/internal/preflight"
+	"github.com/RandyVentures/greenlight/internal/sarif"
+	"github.com/RandyVentures/greenlight/internal/verify"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -320,7 +320,7 @@ func writePreflightTerminal(w *os.File, result *preflight.Result) error {
 	}
 
 	if len(criticals) > 0 {
-		red.Fprintln(w, "  CRITICAL — Will be rejected")
+		red.Fprintln(w, "  CRITICAL — Fix before submitting")
 		fmt.Fprintln(w)
 		for _, f := range criticals {
 			printPreflightFinding(w, f)
@@ -438,6 +438,8 @@ func printPreflightFooter(w *os.File, result *preflight.Result) {
 	fmt.Fprintln(w)
 
 	switch {
+	case result.Incomplete:
+		hiYellow.Fprint(w, "  INCOMPLETE — a requested scanner failed")
 	case s.Critical > 0:
 		red.Fprint(w, "  NOT READY")
 		fmt.Fprintf(w, " — %d critical issue(s) must be fixed", s.Critical)
@@ -445,7 +447,7 @@ func printPreflightFooter(w *os.File, result *preflight.Result) {
 		hiYellow.Fprint(w, "  NEEDS REVIEW")
 		fmt.Fprintf(w, " — %d high-risk issue(s) likely to be rejected", s.High)
 	default:
-		green.Fprint(w, "  GREENLIT")
+		green.Fprint(w, "  NO BLOCKERS FOUND")
 		fmt.Fprint(w, " — no critical issues found")
 	}
 	fmt.Fprintln(w)
@@ -485,46 +487,42 @@ func printPreflightFooter(w *os.File, result *preflight.Result) {
 	dim.Fprintf(w, "  completed in %s\n", result.Elapsed.Round(time.Millisecond))
 
 	// Revyl attribution
-	fmt.Fprintln(w)
-	dim.Fprintln(w, "  ─────────────────────────────────────────────")
-	fmt.Fprintf(w, "  Built by ")
-	purple.Fprint(w, "Revyl")
-	fmt.Fprintln(w, " — the mobile reliability platform")
-	dim.Fprintln(w, "  Catch more than rejections. Catch bugs.")
-	fmt.Fprint(w, "  ")
-	color.New(color.Underline).Fprintln(w, "https://revyl.com")
-	fmt.Fprintln(w)
+	fmt.Fprintln(w, "\n  RandyVentures fork · based on RevylAI/greenlight (MIT)")
 }
 
 func preflightJSONObject(result *preflight.Result) interface{} {
 	return struct {
-		ProjectPath    string              `json:"project_path"`
-		IPAPath        string              `json:"ipa_path,omitempty"`
-		AppName        string              `json:"app_name,omitempty"`
-		BundleID       string              `json:"bundle_id,omitempty"`
-		HasPrivacyInfo bool                `json:"has_privacy_info"`
-		DetectedAPIs   []string            `json:"detected_apis,omitempty"`
-		TrackingSDKs   []string            `json:"tracking_sdks,omitempty"`
-		IsAndroid      bool                `json:"is_android"`
-		PackageName    string              `json:"package_name,omitempty"`
-		TargetSDK      int                 `json:"target_sdk,omitempty"`
-		Findings       []preflight.Finding `json:"findings"`
-		Summary        preflight.Summary   `json:"summary"`
-		Elapsed        string              `json:"elapsed"`
+		ProjectPath     string              `json:"project_path"`
+		Incomplete      bool                `json:"incomplete"`
+		AndroidArtifact string              `json:"android_artifact,omitempty"`
+		IPAPath         string              `json:"ipa_path,omitempty"`
+		AppName         string              `json:"app_name,omitempty"`
+		BundleID        string              `json:"bundle_id,omitempty"`
+		HasPrivacyInfo  bool                `json:"has_privacy_info"`
+		DetectedAPIs    []string            `json:"detected_apis,omitempty"`
+		TrackingSDKs    []string            `json:"tracking_sdks,omitempty"`
+		IsAndroid       bool                `json:"is_android"`
+		PackageName     string              `json:"package_name,omitempty"`
+		TargetSDK       int                 `json:"target_sdk,omitempty"`
+		Findings        []preflight.Finding `json:"findings"`
+		Summary         preflight.Summary   `json:"summary"`
+		Elapsed         string              `json:"elapsed"`
 	}{
-		ProjectPath:    result.ProjectPath,
-		IPAPath:        result.IPAPath,
-		AppName:        result.AppName,
-		BundleID:       result.BundleID,
-		HasPrivacyInfo: result.HasPrivacyInfo,
-		DetectedAPIs:   result.DetectedAPIs,
-		TrackingSDKs:   result.TrackingSDKs,
-		IsAndroid:      result.IsAndroid,
-		PackageName:    result.PackageName,
-		TargetSDK:      result.TargetSDK,
-		Findings:       result.Findings,
-		Summary:        result.Summary,
-		Elapsed:        result.Elapsed.Round(time.Millisecond).String(),
+		ProjectPath:     result.ProjectPath,
+		Incomplete:      result.Incomplete,
+		AndroidArtifact: result.AndroidArtifact,
+		IPAPath:         result.IPAPath,
+		AppName:         result.AppName,
+		BundleID:        result.BundleID,
+		HasPrivacyInfo:  result.HasPrivacyInfo,
+		DetectedAPIs:    result.DetectedAPIs,
+		TrackingSDKs:    result.TrackingSDKs,
+		IsAndroid:       result.IsAndroid,
+		PackageName:     result.PackageName,
+		TargetSDK:       result.TargetSDK,
+		Findings:        result.Findings,
+		Summary:         result.Summary,
+		Elapsed:         result.Elapsed.Round(time.Millisecond).String(),
 	}
 }
 

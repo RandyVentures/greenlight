@@ -1,4 +1,4 @@
-module github.com/RevylAI/greenlight
+module github.com/RandyVentures/greenlight
 
 go 1.24.0
 

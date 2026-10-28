@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/RevylAI/greenlight/internal/guidelines"
+	"github.com/RandyVentures/greenlight/internal/guidelines"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )

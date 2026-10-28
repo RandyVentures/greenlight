@@ -1,14 +1,14 @@
 {
   "name": "greenlight",
   "owner": {
-    "name": "revylai"
+    "name": "RandyVentures"
   },
-  "description": "Greenlight \u2014 Apple App Store and Google Play pre-submission compliance scanner.",
+  "description": "Free open-source submission checks with local screenshot OCR, purchase catalog consistency, and evidence-based reports. Fork of RevylAI/greenlight.",
   "plugins": [
     {
       "name": "greenlight",
       "source": "./",
-      "description": "Run every App Store and Google Play compliance check in one command: code patterns, privacy manifests, Android manifests and Gradle, IPA/APK/AAB binaries, metadata. Catches rejections before you submit.",
+      "description": "Free open-source submission checks with local screenshot OCR, purchase catalog consistency, and evidence-based reports. Fork of RevylAI/greenlight.",
       "category": "compliance",
       "tags": [
         "apple",

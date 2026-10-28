@@ -8,21 +8,15 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/RevylAI/greenlight/internal/asc"
+	"github.com/RandyVentures/greenlight/internal/asc"
+	"github.com/RandyVentures/greenlight/internal/screenshots"
 )
 
 // checkAppExists verifies the app is accessible via the API.
 func checkAppExists(ctx context.Context, client *asc.Client, appID string, findings *[]Finding) error {
 	app, err := client.GetApp(appID)
 	if err != nil {
-		*findings = append(*findings, Finding{
-			Tier:     TierMetadata,
-			Severity: SeverityBlock,
-			Title:    "App not found",
-			Detail:   fmt.Sprintf("Could not access app %s. Verify the app ID and API key permissions.", appID),
-			Fix:      "Check that your API key has App Manager access and the app ID is correct.",
-		})
-		return nil
+		return err
 	}
 
 	if app.Attributes.Name == "" {
@@ -197,90 +191,99 @@ func checkMetadataCompleteness(ctx context.Context, client *asc.Client, appID st
 // checkScreenshots verifies screenshot sets exist.
 func checkScreenshots(ctx context.Context, client *asc.Client, appID string, findings *[]Finding) error {
 	versions, err := client.GetAppStoreVersions(appID)
-	if err != nil || len(versions) == 0 {
-		return err
-	}
-
-	localizations, err := client.GetVersionLocalizations(versions[0].ID)
-	if err != nil || len(localizations) == 0 {
-		return err
-	}
-
-	// Check screenshots for the primary localization
-	primaryLoc := localizations[0]
-	sets, err := client.GetScreenshotSets(primaryLoc.ID)
 	if err != nil {
 		return err
 	}
-
-	if len(sets) == 0 {
-		*findings = append(*findings, Finding{
-			Tier:      TierMetadata,
-			Severity:  SeverityBlock,
-			Guideline: "2.3",
-			Title:     "No screenshots uploaded",
-			Detail:    "At least one set of screenshots is required for submission.",
-			Fix:       "Upload screenshots for at least iPhone 6.7\" and 5.5\" display sizes.",
-		})
-		return nil
+	if len(versions) != 1 {
+		return fmt.Errorf("submission version is not pinned")
 	}
-
-	// Check for required device types
-	requiredTypes := map[string]string{
-		"APP_IPHONE_67": "iPhone 6.7\" (iPhone 15 Pro Max, 16 Pro Max)",
-		"APP_IPHONE_55": "iPhone 5.5\" (iPhone 8 Plus)",
+	app, err := client.GetApp(appID)
+	if err != nil {
+		return err
 	}
-
-	foundTypes := make(map[string]bool)
-	for _, set := range sets {
-		foundTypes[set.Attributes.ScreenshotDisplayType] = true
+	localizations, err := client.GetVersionLocalizations(versions[0].ID)
+	if err != nil {
+		return err
 	}
-
-	for typeKey, typeName := range requiredTypes {
-		if !foundTypes[typeKey] {
-			*findings = append(*findings, Finding{
-				Tier:      TierMetadata,
-				Severity:  SeverityWarn,
-				Guideline: "2.3",
-				Title:     fmt.Sprintf("Missing screenshots for %s", typeName),
-				Detail:    "Screenshots for this device size may be required depending on your app's supported devices.",
-				Fix:       fmt.Sprintf("Upload screenshots for %s display type.", typeName),
-			})
+	primaryFound := false
+	for _, loc := range localizations {
+		primary := loc.Attributes.Locale == app.Attributes.PrimaryLocale
+		if primary {
+			primaryFound = true
+		}
+		sets, err := client.GetScreenshotSets(loc.ID)
+		if err != nil {
+			return fmt.Errorf("[%s] screenshot sets: %w", loc.Attributes.Locale, err)
+		}
+		count := 0
+		for _, set := range sets {
+			shots, err := client.GetScreenshots(set.ID)
+			if err != nil {
+				return fmt.Errorf("[%s] screenshots: %w", loc.Attributes.Locale, err)
+			}
+			count += len(shots)
+			if len(shots) > 10 {
+				*findings = append(*findings, Finding{Tier: TierMetadata, Severity: SeverityBlock, Title: "Too many screenshots in set " + set.ID, Detail: fmt.Sprintf("[%s] %d screenshots in %s", loc.Attributes.Locale, len(shots), set.Attributes.ScreenshotDisplayType)})
+			}
+			for _, shot := range shots {
+				state := ""
+				if shot.Attributes.AssetDeliveryState != nil {
+					state = shot.Attributes.AssetDeliveryState.State
+				}
+				if state != "COMPLETE" {
+					severity := SeverityBlock
+					confidence := "high"
+					if state == "" {
+						severity = SeverityWarn
+						confidence = "none"
+					}
+					*findings = append(*findings, Finding{Tier: TierMetadata, Severity: severity, Confidence: confidence, Title: "Screenshot delivery not confirmed: " + shot.ID, Detail: fmt.Sprintf("[%s] %s delivery state: %q", loc.Attributes.Locale, shot.Attributes.FileName, state), Fix: "Wait for COMPLETE or resolve the upload error in App Store Connect."})
+					if state == "" {
+						return fmt.Errorf("missing asset delivery state for screenshot %s", shot.ID)
+					}
+				}
+			}
+		}
+		if count == 0 {
+			severity := SeverityWarn
+			detail := "No local screenshots; verify primary-locale fallback is appropriate."
+			if primary {
+				severity = SeverityBlock
+				detail = "Primary localization has no screenshots."
+			}
+			*findings = append(*findings, Finding{Tier: TierMetadata, Severity: severity, Guideline: "2.3.3", Confidence: "high", Title: "No screenshots: " + loc.Attributes.Locale, Detail: detail, Fix: "Check required device sizes and locale fallback against Apple's screenshot specifications."})
 		}
 	}
-
+	if !primaryFound {
+		return fmt.Errorf("primary locale %q was not returned; screenshot coverage incomplete", app.Attributes.PrimaryLocale)
+	}
 	return nil
 }
 
-// checkBuildProcessed verifies a build is processed and ready.
+// selectedBuild deliberately follows the version relationship, not upload order.
+func selectedBuild(client *asc.Client, appID string) (*asc.Build, error) {
+	versions, err := client.GetAppStoreVersions(appID)
+	if err != nil {
+		return nil, err
+	}
+	if len(versions) != 1 {
+		return nil, fmt.Errorf("submission version is not pinned")
+	}
+	return client.GetVersionBuild(versions[0].ID)
+}
+
 func checkBuildProcessed(ctx context.Context, client *asc.Client, appID string, findings *[]Finding) error {
-	builds, err := client.GetBuilds(appID)
+	build, err := selectedBuild(client, appID)
 	if err != nil {
 		return err
 	}
-
-	if len(builds) == 0 {
-		*findings = append(*findings, Finding{
-			Tier:     TierMetadata,
-			Severity: SeverityBlock,
-			Title:    "No builds found",
-			Detail:   "No builds have been uploaded to App Store Connect.",
-			Fix:      "Upload a build using Xcode, xcodebuild, or 'asc publish appstore'.",
-		})
+	if build == nil {
+		*findings = append(*findings, Finding{Tier: TierMetadata, Severity: SeverityBlock, Confidence: "high", Title: "No build attached to selected version", Detail: "An uploaded build does not count until selected for this App Store version.", Fix: "Select the intended build in App Store Connect."})
 		return nil
 	}
-
-	latest := builds[0]
-	if latest.Attributes.ProcessingState != "VALID" {
-		*findings = append(*findings, Finding{
-			Tier:     TierMetadata,
-			Severity: SeverityBlock,
-			Title:    fmt.Sprintf("Build %s is in state: %s", latest.Attributes.Version, latest.Attributes.ProcessingState),
-			Detail:   "The build must be in VALID state before submission.",
-			Fix:      "Wait for build processing to complete, or upload a new build if processing failed.",
-		})
+	if build.Attributes.ProcessingState != "VALID" || build.Attributes.Expired {
+		*findings = append(*findings, Finding{Tier: TierMetadata, Severity: SeverityBlock, Confidence: "high", Title: "Attached build is not usable", Detail: fmt.Sprintf("Build %s (%s), processing=%s, expired=%t", build.Attributes.Version, build.ID, build.Attributes.ProcessingState, build.Attributes.Expired), Fix: "Select a valid, unexpired build for this version."})
 	}
-
 	return nil
 }
 
@@ -292,26 +295,28 @@ func checkAgeRating(ctx context.Context, client *asc.Client, appID string, findi
 	}
 
 	if len(infos) == 0 {
-		*findings = append(*findings, Finding{
-			Tier:      TierMetadata,
-			Severity:  SeverityWarn,
-			Guideline: "1.3",
-			Title:     "Cannot verify age rating",
-			Detail:    "Could not fetch app info to verify age rating declaration.",
-		})
-		return nil
+		return fmt.Errorf("no app info returned; age rating is unverified")
 	}
 
-	info := infos[0]
+	versions, err := client.GetAppStoreVersions(appID)
+	if err != nil {
+		return err
+	}
+	if len(versions) != 1 {
+		return fmt.Errorf("submission version is not pinned")
+	}
+	var matching []asc.AppInfo
+	for _, info := range infos {
+		if info.Attributes.AppStoreState == versions[0].Attributes.AppStoreState {
+			matching = append(matching, info)
+		}
+	}
+	if len(matching) != 1 {
+		return fmt.Errorf("cannot identify one app-info record matching selected version state; age rating is unverified")
+	}
+	info := matching[0]
 	if info.Attributes.AppStoreAgeRating == "" {
-		*findings = append(*findings, Finding{
-			Tier:      TierMetadata,
-			Severity:  SeverityBlock,
-			Guideline: "1.3",
-			Title:     "Age rating not declared",
-			Detail:    "An age rating questionnaire must be completed before submission.",
-			Fix:       "Complete the age rating questionnaire in App Store Connect → App Information.",
-		})
+		return fmt.Errorf("age rating not returned for matching app info %s; confirm the questionnaire in App Store Connect", info.ID)
 	}
 
 	return nil
@@ -319,93 +324,62 @@ func checkAgeRating(ctx context.Context, client *asc.Client, appID string, findi
 
 // checkEncryption verifies encryption compliance status.
 func checkEncryption(ctx context.Context, client *asc.Client, appID string, findings *[]Finding) error {
-	builds, err := client.GetBuilds(appID)
-	if err != nil || len(builds) == 0 {
+	build, err := selectedBuild(client, appID)
+	if err != nil {
 		return err
 	}
-
-	latest := builds[0]
-	if latest.Attributes.UsesNonExemptEncryption == nil {
-		*findings = append(*findings, Finding{
-			Tier:      TierMetadata,
-			Severity:  SeverityWarn,
-			Guideline: "5.0",
-			Title:     "Encryption compliance not declared",
-			Detail:    "You haven't declared whether your app uses non-exempt encryption.",
-			Fix:       "Set ITSAppUsesNonExemptEncryption in Info.plist or declare in App Store Connect.",
-		})
+	if build == nil {
+		return fmt.Errorf("cannot verify encryption without an attached build")
 	}
-
+	if build.Attributes.UsesNonExemptEncryption == nil {
+		*findings = append(*findings, Finding{Tier: TierMetadata, Severity: SeverityWarn, Confidence: "none", Title: "Attached build encryption declaration unverified", Detail: "No encryption declaration was returned for attached build " + build.ID, Fix: "Confirm export compliance for this specific build in App Store Connect."})
+	}
 	return nil
 }
 
-// Required screenshot dimensions for each display type.
-var requiredScreenshotDimensions = map[string]struct {
-	name   string
-	width  int
-	height int
-}{
-	"APP_IPHONE_67":         {"iPhone 6.7\"", 1290, 2796},
-	"APP_IPHONE_65":         {"iPhone 6.5\"", 1284, 2778},
-	"APP_IPHONE_55":         {"iPhone 5.5\"", 1242, 2208},
-	"APP_IPAD_PRO_3GEN_129": {"iPad Pro 12.9\"", 2048, 2732},
-	"APP_IPAD_PRO_129":      {"iPad Pro 12.9\" (2nd gen)", 2048, 2732},
-}
-
-// checkScreenshotDimensions validates that uploaded screenshots have correct dimensions.
 func checkScreenshotDimensions(ctx context.Context, client *asc.Client, appID string, findings *[]Finding) error {
 	versions, err := client.GetAppStoreVersions(appID)
-	if err != nil || len(versions) == 0 {
+	if err != nil {
 		return err
 	}
-
+	if len(versions) != 1 {
+		return fmt.Errorf("submission version is not pinned")
+	}
 	localizations, err := client.GetVersionLocalizations(versions[0].ID)
-	if err != nil || len(localizations) == 0 {
+	if err != nil {
 		return err
 	}
-
-	primaryLoc := localizations[0]
-	sets, err := client.GetScreenshotSets(primaryLoc.ID)
-	if err != nil || len(sets) == 0 {
-		return nil // other checks handle missing screenshots
-	}
-
-	for _, set := range sets {
-		displayType := set.Attributes.ScreenshotDisplayType
-		expectedDims, ok := requiredScreenshotDimensions[displayType]
-		if !ok {
-			continue
-		}
-
-		screenshots, err := client.GetScreenshots(set.ID)
+	var gaps []string
+	for _, loc := range localizations {
+		sets, err := client.GetScreenshotSets(loc.ID)
 		if err != nil {
-			continue
+			return err
 		}
-
-		for _, ss := range screenshots {
-			if ss.Attributes.ImageAsset == nil {
-				continue
+		for _, set := range sets {
+			shots, err := client.GetScreenshots(set.ID)
+			if err != nil {
+				return err
 			}
-			w := ss.Attributes.ImageAsset.Width
-			h := ss.Attributes.ImageAsset.Height
-
-			// Check both portrait and landscape orientations
-			validPortrait := w == expectedDims.width && h == expectedDims.height
-			validLandscape := w == expectedDims.height && h == expectedDims.width
-			if !validPortrait && !validLandscape {
-				*findings = append(*findings, Finding{
-					Tier:      TierMetadata,
-					Severity:  SeverityBlock,
-					Guideline: "2.3",
-					Title:     fmt.Sprintf("Screenshot wrong dimensions for %s: %dx%d", expectedDims.name, w, h),
-					Detail:    fmt.Sprintf("Expected %dx%d (portrait) or %dx%d (landscape) for %s.", expectedDims.width, expectedDims.height, expectedDims.height, expectedDims.width, expectedDims.name),
-					Fix:       fmt.Sprintf("Re-capture screenshots at the correct resolution for %s.", expectedDims.name),
-				})
-				break // one finding per set is enough
+			for _, shot := range shots {
+				if shot.Attributes.ImageAsset == nil {
+					gaps = append(gaps, "missing dimensions: "+shot.ID)
+					continue
+				}
+				im := shot.Attributes.ImageAsset
+				valid, known := screenshots.ValidSize(set.Attributes.ScreenshotDisplayType, im.Width, im.Height)
+				if !known {
+					gaps = append(gaps, "unrecognized display type: "+set.Attributes.ScreenshotDisplayType)
+					continue
+				}
+				if !valid {
+					*findings = append(*findings, Finding{Tier: TierMetadata, Severity: SeverityBlock, Confidence: "high", Guideline: "2.3.3", Title: "Screenshot dimensions mismatch: " + shot.ID, Detail: fmt.Sprintf("[%s] %s: %dx%d for %s", loc.Attributes.Locale, shot.Attributes.FileName, im.Width, im.Height, set.Attributes.ScreenshotDisplayType), Fix: "Check accepted sizes at " + screenshots.Specifications})
+				}
 			}
 		}
 	}
-
+	if len(gaps) > 0 {
+		return fmt.Errorf("dimension checks incomplete: %s", strings.Join(gaps, "; "))
+	}
 	return nil
 }
 
@@ -413,8 +387,8 @@ func checkScreenshotDimensions(ctx context.Context, client *asc.Client, appID st
 func checkTestFlightExternal(ctx context.Context, client *asc.Client, appID string, findings *[]Finding) error {
 	groups, err := client.GetBetaGroups(appID)
 	if err != nil {
-		// Non-fatal — API may not have access
-		return nil
+		// API access failure is unverified coverage.
+		return err
 	}
 
 	hasExternal := false
@@ -443,7 +417,7 @@ func checkTestFlightExternal(ctx context.Context, client *asc.Client, appID stri
 func checkTerritoryAvailability(ctx context.Context, client *asc.Client, appID string, findings *[]Finding) error {
 	territories, err := client.GetAppAvailability(appID)
 	if err != nil {
-		return nil // non-fatal
+		return err
 	}
 
 	if len(territories) == 0 {
@@ -471,9 +445,7 @@ func checkTerritoryAvailability(ctx context.Context, client *asc.Client, appID s
 func checkPricingConsistency(ctx context.Context, client *asc.Client, appID string, findings *[]Finding) error {
 	prices, err := client.GetAppPriceSchedule(appID)
 	if err != nil {
-		// The price schedule endpoint can fail if no pricing is configured
-		// This isn't necessarily an error for free apps
-		return nil
+		return err
 	}
 
 	if len(prices) == 0 {
@@ -493,7 +465,7 @@ func checkPricingConsistency(ctx context.Context, client *asc.Client, appID stri
 func checkAppNameLength(ctx context.Context, client *asc.Client, appID string, findings *[]Finding) error {
 	app, err := client.GetApp(appID)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	name := strings.TrimSpace(app.Attributes.Name)

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/RevylAI/greenlight/internal/asc"
+	"github.com/RandyVentures/greenlight/internal/asc"
 )
 
 // Patterns that reference competing platforms — a common rejection trigger.
@@ -66,12 +66,13 @@ func checkPlatformReferences(ctx context.Context, client *asc.Client, appID stri
 			for _, pp := range platformPatterns {
 				if strings.Contains(lower, pp.pattern) {
 					*findings = append(*findings, Finding{
-						Tier:      TierContent,
-						Severity:  SeverityBlock,
-						Guideline: "2.3",
-						Title:     fmt.Sprintf("[%s] %s mentions %s in %s", locale, pp.name, pp.name, fieldName),
-						Detail:    "Referencing competing platforms in App Store metadata is a common rejection reason.",
-						Fix:       fmt.Sprintf("Remove the reference to %s from the %s field.", pp.name, fieldName),
+						Tier:       TierContent,
+						Confidence: "medium",
+						Severity:   SeverityWarn,
+						Guideline:  "2.3",
+						Title:      fmt.Sprintf("[%s] %s mentions %s in %s", locale, pp.name, pp.name, fieldName),
+						Detail:     "Referencing competing platforms in App Store metadata is a common rejection reason.",
+						Fix:        fmt.Sprintf("Remove the reference to %s from the %s field.", pp.name, fieldName),
 					})
 				}
 			}
@@ -107,12 +108,13 @@ func checkPlaceholderContent(ctx context.Context, client *asc.Client, appID stri
 			for _, pattern := range placeholderPatterns {
 				if strings.Contains(lower, pattern) {
 					*findings = append(*findings, Finding{
-						Tier:      TierContent,
-						Severity:  SeverityBlock,
-						Guideline: "2.1",
-						Title:     fmt.Sprintf("[%s] Placeholder content detected in %s", locale, fieldName),
-						Detail:    fmt.Sprintf("Found '%s' — Apple rejects apps with placeholder or incomplete content.", pattern),
-						Fix:       fmt.Sprintf("Replace placeholder text in %s with final content.", fieldName),
+						Tier:       TierContent,
+						Confidence: "medium",
+						Severity:   SeverityWarn,
+						Guideline:  "2.1",
+						Title:      fmt.Sprintf("[%s] Placeholder content detected in %s", locale, fieldName),
+						Detail:     fmt.Sprintf("Found '%s' — Apple rejects apps with placeholder or incomplete content.", pattern),
+						Fix:        fmt.Sprintf("Replace placeholder text in %s with final content.", fieldName),
 					})
 				}
 			}

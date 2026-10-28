@@ -7,7 +7,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/RevylAI/greenlight/internal/checks"
+	"github.com/RandyVentures/greenlight/internal/checks"
 	"github.com/fatih/color"
 )
 
@@ -43,6 +43,8 @@ func (r *Report) WriteTerminal(w io.Writer) error {
 		}
 	}
 
+	fmt.Fprintf(w, "  Version: %s (%s), platform: %s\n", r.results.Version, r.results.VersionID, r.results.Platform)
+
 	// Print blocks first
 	if len(blocks) > 0 {
 		red.Fprintln(w, "  BLOCKING ISSUES")
@@ -76,8 +78,10 @@ func (r *Report) WriteTerminal(w io.Writer) error {
 	fmt.Fprintln(w)
 
 	s := r.results.Summary
-	if s.Passed {
-		green.Fprintf(w, "  GREENLIT")
+	if r.results.Incomplete {
+		yellow.Fprintln(w, "  INCOMPLETE — some checks could not be verified")
+	} else if s.Passed {
+		green.Fprintf(w, "  NO BLOCKERS FOUND")
 		fmt.Fprintf(w, " — no blocking issues found")
 	} else {
 		red.Fprintf(w, "  NOT READY")
@@ -98,16 +102,12 @@ func (r *Report) WriteTerminal(w io.Writer) error {
 	fmt.Fprintln(w)
 	dim.Fprintf(w, "  completed in %s\n", r.elapsed.Round(time.Millisecond))
 
+	for _, l := range r.results.Limitations {
+		fmt.Fprintln(w, "  Scope: "+l)
+	}
+
 	// Revyl attribution
-	fmt.Fprintln(w)
-	dim.Fprintln(w, "  ─────────────────────────────────────────────")
-	fmt.Fprintf(w, "  Built by ")
-	purple.Fprint(w, "Revyl")
-	fmt.Fprintln(w, " — the mobile reliability platform")
-	dim.Fprintln(w, "  Catch more than rejections. Catch bugs.")
-	fmt.Fprint(w, "  ")
-	color.New(color.Underline).Fprintln(w, "https://revyl.com")
-	fmt.Fprintln(w)
+	fmt.Fprintln(w, "\n  RandyVentures fork · based on RevylAI/greenlight (MIT)")
 
 	return nil
 }
@@ -196,6 +196,13 @@ func (r *Report) WriteJUnit(w io.Writer) error {
 		suite.Cases = append(suite.Cases, tc)
 	}
 
+	for _, c := range r.results.Checks {
+		if c.Status == "unverified" {
+			suite.Tests++
+			suite.Failures++
+			suite.Cases = append(suite.Cases, junitTestCase{Name: c.Name, ClassName: "greenlight.coverage", Failure: &junitFailure{Message: "Check unverified", Type: "incomplete", Text: c.Evidence}})
+		}
+	}
 	suites := junitTestSuites{Suites: []junitTestSuite{suite}}
 
 	fmt.Fprint(w, xml.Header)

@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/RevylAI/greenlight/internal/codescan"
-	"github.com/RevylAI/greenlight/internal/ipa"
-	"github.com/RevylAI/greenlight/internal/playscan"
-	"github.com/RevylAI/greenlight/internal/privacy"
+	"github.com/RandyVentures/greenlight/internal/codescan"
+	"github.com/RandyVentures/greenlight/internal/ipa"
+	"github.com/RandyVentures/greenlight/internal/playscan"
+	"github.com/RandyVentures/greenlight/internal/privacy"
 )
 
 // Finding is the unified finding type across all scanners.

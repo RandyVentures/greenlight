@@ -1,12 +1,12 @@
 package checks
 
-// Severity indicates how likely a finding is to cause rejection.
+// Severity indicates remediation priority, not an approval probability.
 type Severity int
 
 const (
 	SeverityInfo  Severity = iota // Best practice recommendation
-	SeverityWarn                  // High risk of rejection
-	SeverityBlock                 // Will almost certainly be rejected
+	SeverityWarn                  // Needs human review
+	SeverityBlock                 // Concrete blocker within the check's scope
 )
 
 func (s Severity) String() string {
@@ -27,27 +27,42 @@ type Tier int
 
 const (
 	TierMetadata Tier = 1 // API-based metadata & completeness
-	TierContent  Tier = 2 // AI-powered content analysis
+	TierContent  Tier = 2 // Metadata text heuristics
 	TierBinary   Tier = 3 // IPA binary inspection
 	TierPattern  Tier = 4 // Historical pattern matching
 )
 
 // Finding is a single issue found during scanning.
 type Finding struct {
-	Tier      Tier     `json:"tier"`
-	Severity  Severity `json:"severity"`
-	Guideline string   `json:"guideline"` // e.g. "2.1", "5.1.1"
-	Title     string   `json:"title"`
-	Detail    string   `json:"detail"`
-	Fix       string   `json:"fix,omitempty"`
+	Tier       Tier     `json:"tier"`
+	Severity   Severity `json:"severity"`
+	Guideline  string   `json:"guideline"` // e.g. "2.1", "5.1.1"
+	Title      string   `json:"title"`
+	Detail     string   `json:"detail"`
+	Fix        string   `json:"fix,omitempty"`
+	Confidence string   `json:"confidence,omitempty"`
 }
 
 // Results holds the complete scan output.
 type Results struct {
-	AppID    string    `json:"app_id"`
-	AppName  string    `json:"app_name"`
-	Findings []Finding `json:"findings"`
-	Summary  Summary   `json:"summary"`
+	AppID       string        `json:"app_id"`
+	AppName     string        `json:"app_name"`
+	Findings    []Finding     `json:"findings"`
+	Summary     Summary       `json:"summary"`
+	VersionID   string        `json:"version_id"`
+	BuildID     string        `json:"build_id,omitempty"`
+	BuildNumber string        `json:"build_number,omitempty"`
+	Version     string        `json:"version"`
+	Platform    string        `json:"platform"`
+	Checks      []CheckResult `json:"checks"`
+	Incomplete  bool          `json:"incomplete"`
+	Limitations []string      `json:"limitations"`
+}
+
+type CheckResult struct {
+	Name     string `json:"name"`
+	Status   string `json:"status"`
+	Evidence string `json:"evidence,omitempty"`
 }
 
 // Summary provides aggregate counts.
@@ -72,5 +87,5 @@ func (r *Results) ComputeSummary() {
 			r.Summary.Infos++
 		}
 	}
-	r.Summary.Passed = r.Summary.Blocks == 0
+	r.Summary.Passed = r.Summary.Blocks == 0 && !r.Incomplete
 }

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RevylAI/greenlight/internal/codescan"
-	"github.com/RevylAI/greenlight/internal/revyl"
+	"github.com/RandyVentures/greenlight/internal/codescan"
+	"github.com/RandyVentures/greenlight/internal/revyl"
 )
 
 // Flow result statuses.

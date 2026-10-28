@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/RevylAI/greenlight/internal/asc"
-	"github.com/RevylAI/greenlight/internal/config"
+	"github.com/RandyVentures/greenlight/internal/asc"
+	"github.com/RandyVentures/greenlight/internal/config"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )

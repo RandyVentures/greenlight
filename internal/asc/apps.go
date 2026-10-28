@@ -69,6 +69,7 @@ type BuildAttributes struct {
 	Version                 string `json:"version"`
 	UploadedDate            string `json:"uploadedDate"`
 	ProcessingState         string `json:"processingState"`
+	Expired                 bool   `json:"expired"`
 	MinOsVersion            string `json:"minOsVersion"`
 	UsesNonExemptEncryption *bool  `json:"usesNonExemptEncryption"`
 }
@@ -103,30 +104,23 @@ func (c *Client) GetApp(appID string) (*App, error) {
 
 // GetAppInfos fetches app info (age rating, state, etc).
 func (c *Client) GetAppInfos(appID string) ([]AppInfo, error) {
-	var resp ListResponse[AppInfo]
-	if err := c.get(fmt.Sprintf("/apps/%s/appInfos", appID), &resp); err != nil {
-		return nil, err
-	}
-	return resp.Data, nil
+	return getAll[AppInfo](c, fmt.Sprintf("/apps/%s/appInfos?limit=200", appID))
 }
 
 // GetAppStoreVersions fetches all versions for an app.
 func (c *Client) GetAppStoreVersions(appID string) ([]AppStoreVersion, error) {
-	var resp ListResponse[AppStoreVersion]
-	path := fmt.Sprintf("/apps/%s/appStoreVersions?filter[appStoreState]=READY_FOR_SALE,PREPARE_FOR_SUBMISSION,WAITING_FOR_REVIEW,IN_REVIEW,DEVELOPER_REJECTED", appID)
-	if err := c.get(path, &resp); err != nil {
-		return nil, err
+	if c.scopedVersion != nil {
+		if c.scopedApp != appID {
+			return nil, fmt.Errorf("scoped client belongs to another app")
+		}
+		return []AppStoreVersion{*c.scopedVersion}, nil
 	}
-	return resp.Data, nil
+	return getAll[AppStoreVersion](c, fmt.Sprintf("/apps/%s/appStoreVersions?limit=200", appID))
 }
 
 // GetVersionLocalizations fetches localized metadata for a version.
 func (c *Client) GetVersionLocalizations(versionID string) ([]VersionLocalization, error) {
-	var resp ListResponse[VersionLocalization]
-	if err := c.get(fmt.Sprintf("/appStoreVersions/%s/appStoreVersionLocalizations", versionID), &resp); err != nil {
-		return nil, err
-	}
-	return resp.Data, nil
+	return getAll[VersionLocalization](c, fmt.Sprintf("/appStoreVersions/%s/appStoreVersionLocalizations?limit=200", versionID))
 }
 
 // GetBuilds fetches builds for an app, optionally filtered.
@@ -141,11 +135,7 @@ func (c *Client) GetBuilds(appID string) ([]Build, error) {
 
 // GetScreenshotSets fetches screenshot sets for a version localization.
 func (c *Client) GetScreenshotSets(localizationID string) ([]ScreenshotSet, error) {
-	var resp ListResponse[ScreenshotSet]
-	if err := c.get(fmt.Sprintf("/appStoreVersionLocalizations/%s/appScreenshotSets", localizationID), &resp); err != nil {
-		return nil, err
-	}
-	return resp.Data, nil
+	return getAll[ScreenshotSet](c, fmt.Sprintf("/appStoreVersionLocalizations/%s/appScreenshotSets?limit=200", localizationID))
 }
 
 // Screenshot represents an individual screenshot file.
@@ -155,11 +145,14 @@ type Screenshot struct {
 }
 
 type ScreenshotAttributes struct {
-	FileSize         int         `json:"fileSize"`
-	FileName         string      `json:"fileName"`
-	ImageAsset       *ImageAsset `json:"imageAsset"`
-	AssetToken       string      `json:"assetToken"`
-	UploadOperations interface{} `json:"uploadOperations"`
+	FileSize           int         `json:"fileSize"`
+	FileName           string      `json:"fileName"`
+	ImageAsset         *ImageAsset `json:"imageAsset"`
+	AssetToken         string      `json:"assetToken"`
+	UploadOperations   interface{} `json:"uploadOperations"`
+	AssetDeliveryState *struct {
+		State string `json:"state"`
+	} `json:"assetDeliveryState"`
 }
 
 type ImageAsset struct {
@@ -169,11 +162,7 @@ type ImageAsset struct {
 
 // GetScreenshots fetches individual screenshots for a screenshot set.
 func (c *Client) GetScreenshots(screenshotSetID string) ([]Screenshot, error) {
-	var resp ListResponse[Screenshot]
-	if err := c.get(fmt.Sprintf("/appScreenshotSets/%s/appScreenshots", screenshotSetID), &resp); err != nil {
-		return nil, err
-	}
-	return resp.Data, nil
+	return getAll[Screenshot](c, fmt.Sprintf("/appScreenshotSets/%s/appScreenshots?limit=200", screenshotSetID))
 }
 
 // BetaGroup represents a TestFlight group.

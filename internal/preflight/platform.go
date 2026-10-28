@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/RevylAI/greenlight/internal/playscan"
+	"github.com/RandyVentures/greenlight/internal/playscan"
 )
 
 // iosSkipDirs mirrors the directories the other scanners ignore, so a vendored

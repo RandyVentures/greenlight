@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RevylAI/greenlight/internal/playscan"
+	"github.com/RandyVentures/greenlight/internal/playscan"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -209,7 +209,7 @@ func printPlayscanReport(w *os.File, result *playscan.ScanResult, elapsed time.D
 		if f.Severity != lastSeverity {
 			switch f.Severity {
 			case "CRITICAL":
-				red.Fprintln(w, "  CRITICAL — Will be rejected or already losing distribution")
+				red.Fprintln(w, "  CRITICAL — Policy or distribution blockers")
 			case "HIGH":
 				hiYellow.Fprintln(w, "  HIGH — Likely rejection")
 			case "WARN":

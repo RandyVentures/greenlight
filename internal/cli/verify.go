@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RevylAI/greenlight/internal/revyl"
-	"github.com/RevylAI/greenlight/internal/verify"
+	"github.com/RandyVentures/greenlight/internal/revyl"
+	"github.com/RandyVentures/greenlight/internal/verify"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -338,13 +338,7 @@ func printSignupCTA(w *os.File, r *verify.Result) {
 	fmt.Fprint(w, "  Then re-run:  ")
 	greenC.Fprintln(w, "greenlight verify . --build-name \"<your Revyl build>\"")
 
-	fmt.Fprintln(w)
-	dim.Fprintln(w, "  ─────────────────────────────────────────────")
-	fmt.Fprint(w, "  Powered by ")
-	purple.Fprint(w, "Revyl")
-	fmt.Fprintln(w, " — the mobile reliability platform")
-	dim.Fprintln(w, "  Static catches rejections. Revyl catches broken flows.")
-	fmt.Fprintln(w)
+	fmt.Fprintln(w, "\n  RandyVentures fork · based on RevylAI/greenlight (MIT)")
 }
 
 func printVerifyFooter(w *os.File, r *verify.Result) {
@@ -398,15 +392,7 @@ func printVerifyFooter(w *os.File, r *verify.Result) {
 
 	dim.Fprintf(w, "  completed in %s\n", r.Elapsed.Round(time.Millisecond))
 
-	fmt.Fprintln(w)
-	dim.Fprintln(w, "  ─────────────────────────────────────────────")
-	fmt.Fprint(w, "  Powered by ")
-	purple.Fprint(w, "Revyl")
-	fmt.Fprintln(w, " — the mobile reliability platform")
-	dim.Fprintln(w, "  Static catches rejections. Revyl catches broken flows.")
-	fmt.Fprint(w, "  ")
-	color.New(color.Underline).Fprintln(w, "https://revyl.com")
-	fmt.Fprintln(w)
+	fmt.Fprintln(w, "\n  RandyVentures fork · based on RevylAI/greenlight (MIT)")
 }
 
 func verifyJSONObject(r *verify.Result) interface{} {

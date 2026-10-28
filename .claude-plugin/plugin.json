@@ -1,14 +1,14 @@
 {
   "name": "greenlight",
   "displayName": "Greenlight \u2014 App Store & Google Play Pre-Submission Scanner",
-  "description": "Run every App Store and Google Play compliance check in one command: code patterns, privacy manifests, Android manifests and Gradle, IPA/APK/AAB binaries, metadata. Catches rejections before you submit. Claude Code integration: run, fix, re-run until GREENLIT.",
+  "description": "Free open-source submission checks with local screenshot OCR, purchase catalog consistency, and evidence-based reports. Fork of RevylAI/greenlight.",
   "version": "0.2.0",
   "author": {
-    "name": "revylai",
-    "url": "https://revyl.com"
+    "name": "RandyVentures",
+    "url": "https://github.com/RandyVentures"
   },
-  "homepage": "https://github.com/RevylAI/greenlight",
-  "repository": "https://github.com/RevylAI/greenlight",
+  "homepage": "https://github.com/RandyVentures/greenlight",
+  "repository": "https://github.com/RandyVentures/greenlight",
   "license": "MIT",
   "keywords": [
     "app store review",

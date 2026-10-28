@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/RevylAI/greenlight/internal/preflight"
-	"github.com/RevylAI/greenlight/internal/verify"
+	"github.com/RandyVentures/greenlight/internal/preflight"
+	"github.com/RandyVentures/greenlight/internal/verify"
 )
 
 // preflightExit only trips when --exit-code is set, and then on any CRITICAL or

@@ -1,0 +1,3 @@
+{
+  "data": [{"type": "inAppPurchases", "id": "synthetic-product", "attributes": {"productId": "com.example.pro", "state": "APPROVED"}}]
+}

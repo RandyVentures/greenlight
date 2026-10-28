@@ -1,5 +1,4 @@
-# GoReleaser config — builds, archives, checksums, a GitHub release, and the
-# Homebrew tap formula on every `vX.Y.Z` tag. See .github/workflows/release.yml.
+# Builds, archives, checksums, and a release on this fork for each v* tag.
 version: 2
 
 project_name: greenlight
@@ -31,12 +30,10 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
-# Pin the target repo rather than letting GoReleaser infer it from the git
-# remote. A contributor's fork is a perfectly ordinary remote, and the inferred
-# value ends up baked into the Homebrew cask's download URLs.
+# Release only to RandyVentures; never write to upstream or its Homebrew tap.
 release:
   github:
-    owner: RevylAI
+    owner: RandyVentures
     name: greenlight
 
 changelog:
@@ -47,19 +44,3 @@ changelog:
       - "^test:"
       - "^chore:"
       - "^ci:"
-
-homebrew_casks:
-  - name: greenlight
-    repository:
-      owner: RevylAI
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    homepage: "https://github.com/RevylAI/greenlight"
-    description: "Pre-submission compliance scanner for the Apple App Store and Google Play"
-    # Strip the quarantine xattr so the unsigned binary runs without a Gatekeeper prompt.
-    hooks:
-      post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/greenlight"]
-          end

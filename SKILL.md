@@ -13,7 +13,7 @@ This pointer stays because people look for `SKILL.md` here (see
 
 ```bash
 # In Claude Code
-/plugin marketplace add RevylAI/greenlight
+/plugin marketplace add RandyVentures/greenlight
 /plugin install greenlight
 ```
 
@@ -21,5 +21,6 @@ Or copy it into a project by hand:
 
 ```bash
 mkdir -p .claude/skills
-cp skills/greenlight/SKILL.md .claude/skills/greenlight.md
+mkdir -p .claude/skills/greenlight
+cp skills/greenlight/SKILL.md .claude/skills/greenlight/SKILL.md
 ```

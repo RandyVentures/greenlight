@@ -5,18 +5,24 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 )
 
 const baseURL = "https://api.appstoreconnect.apple.com/v1"
 
 type Client struct {
-	keyID      string
-	issuerID   string
-	keyPath    string
-	httpClient *http.Client
-	token      string
-	tokenExp   time.Time
+	keyID              string
+	issuerID           string
+	keyPath            string
+	httpClient         *http.Client
+	token              string
+	tokenExp           time.Time
+	scopedApp          string
+	scopedVersion      *AppStoreVersion
+	scopedBuild        *Build
+	scopedBuildFetched bool
 }
 
 func NewClient(keyID, issuerID, privateKeyPath string) (*Client, error) {
@@ -54,8 +60,15 @@ func (c *Client) get(path string, result interface{}) error {
 		}
 	}
 
-	url := baseURL + path
-	req, err := http.NewRequest("GET", url, nil)
+	target := baseURL + path
+	if strings.HasPrefix(path, "https://") {
+		u, err := url.Parse(path)
+		if err != nil || u.Scheme != "https" || u.Host != "api.appstoreconnect.apple.com" || u.User != nil || !strings.HasPrefix(u.Path, "/v1/") {
+			return fmt.Errorf("refusing untrusted pagination URL")
+		}
+		target = path
+	}
+	req, err := http.NewRequest("GET", target, nil)
 	if err != nil {
 		return err
 	}
@@ -83,4 +96,31 @@ func (c *Client) get(path string, result interface{}) error {
 	}
 
 	return nil
+}
+
+// getAll follows Apple's pagination so later locales/assets are not silently skipped.
+func getAll[T any](c *Client, path string) ([]T, error) {
+	items := []T{}
+	seen := map[string]bool{}
+	for path != "" {
+		if seen[path] || len(seen) >= 1000 {
+			return nil, fmt.Errorf("invalid or excessive pagination")
+		}
+		seen[path] = true
+		var page struct {
+			Data  []T `json:"data"`
+			Links struct {
+				Next string `json:"next"`
+			} `json:"links"`
+		}
+		if err := c.get(path, &page); err != nil {
+			return nil, err
+		}
+		if page.Data == nil {
+			return nil, fmt.Errorf("API list response is missing its data array")
+		}
+		items = append(items, page.Data...)
+		path = page.Links.Next
+	}
+	return items, nil
 }

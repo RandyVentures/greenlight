@@ -1,10 +1,10 @@
 {
   "version": "0.2.0",
   "name": "greenlight",
-  "description": "Pre-submission compliance scanner for the Apple App Store and Google Play",
+  "description": "Free open-source submission checks with local screenshot OCR, purchase catalog consistency, and evidence-based reports. Fork of RevylAI/greenlight.",
   "organization": {
-    "name": "Revyl",
-    "url": "https://revyl.com"
+    "name": "RandyVentures",
+    "url": "https://github.com/RandyVentures/greenlight"
   },
   "references": [
     "https://developer.apple.com/app-store/review/guidelines/",

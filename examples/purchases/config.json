@@ -1,0 +1,7 @@
+{
+  "products": [{"id": "com.example.pro", "entitlement": "pro"}],
+  "source_files": ["Products.swift"],
+  "storekit_file": "Local.storekit",
+  "app_store_connect_file": "asc-products.json",
+  "revenuecat_file": "revenuecat-products.json"
+}

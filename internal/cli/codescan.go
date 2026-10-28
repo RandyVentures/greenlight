@@ -8,13 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RevylAI/greenlight/internal/codescan"
-	"github.com/RevylAI/greenlight/internal/sarif"
+	"github.com/RandyVentures/greenlight/internal/codescan"
+	"github.com/RandyVentures/greenlight/internal/sarif"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
-const greenlightInfoURI = "https://github.com/RevylAI/greenlight"
+const greenlightInfoURI = "https://github.com/RandyVentures/greenlight"
 
 var (
 	codescanPath   string
@@ -175,7 +175,7 @@ func writeCodescanTerminal(w *os.File, findings []codescan.Finding, elapsed time
 	}
 
 	if len(criticals) > 0 {
-		red.Fprintln(w, "  CRITICAL — Will be rejected")
+		red.Fprintln(w, "  CRITICAL — Fix before submitting")
 		fmt.Fprintln(w)
 		for _, f := range criticals {
 			printCodescanFinding(w, f)
@@ -279,7 +279,7 @@ func printCodescanFooter(w *os.File, criticals, highs, warns, infos int, elapsed
 		hiYellow.Fprint(w, "  NEEDS REVIEW")
 		fmt.Fprintf(w, " — %d high-risk issue(s) likely to be rejected", highs)
 	default:
-		green.Fprint(w, "  GREENLIT")
+		green.Fprint(w, "  NO BLOCKERS FOUND")
 		fmt.Fprint(w, " — no critical issues found")
 	}
 	fmt.Fprintln(w)
@@ -304,15 +304,7 @@ func printCodescanFooter(w *os.File, criticals, highs, warns, infos int, elapsed
 	dim.Fprintf(w, "  completed in %s\n", elapsed.Round(time.Millisecond))
 
 	// Revyl attribution
-	fmt.Fprintln(w)
-	dim.Fprintln(w, "  ─────────────────────────────────────────────")
-	fmt.Fprintf(w, "  Built by ")
-	purple.Fprint(w, "Revyl")
-	fmt.Fprintln(w, " — the mobile reliability platform")
-	dim.Fprintln(w, "  Catch more than rejections. Catch bugs.")
-	fmt.Fprint(w, "  ")
-	color.New(color.Underline).Fprintln(w, "https://revyl.com")
-	fmt.Fprintln(w)
+	fmt.Fprintln(w, "\n  RandyVentures fork · based on RevylAI/greenlight (MIT)")
 }
 
 func writeCodescanJSON(w *os.File, findings []codescan.Finding, elapsed time.Duration) error {

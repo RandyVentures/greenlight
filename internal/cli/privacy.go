@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RevylAI/greenlight/internal/privacy"
+	"github.com/RandyVentures/greenlight/internal/privacy"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -110,7 +110,7 @@ func runPrivacy(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(criticals) > 0 {
-		red.Println("  CRITICAL — Will be rejected")
+		red.Println("  CRITICAL — Fix before submitting")
 		fmt.Println()
 		for _, f := range criticals {
 			red.Fprint(os.Stdout, "  [CRITICAL] ")
@@ -173,7 +173,7 @@ func printPrivacyFooter(criticals, warns, infos int, elapsed time.Duration) {
 	fmt.Println()
 
 	if criticals == 0 {
-		green.Fprint(os.Stdout, "  GREENLIT")
+		green.Fprint(os.Stdout, "  NO BLOCKERS FOUND")
 		fmt.Fprint(os.Stdout, " — privacy compliance looks good")
 	} else {
 		red.Fprint(os.Stdout, "  NOT READY")
@@ -197,13 +197,5 @@ func printPrivacyFooter(criticals, warns, infos int, elapsed time.Duration) {
 
 	dim.Fprintf(os.Stdout, "  completed in %s\n", elapsed.Round(time.Millisecond))
 
-	fmt.Println()
-	dim.Fprintln(os.Stdout, "  ─────────────────────────────────────────────")
-	fmt.Fprint(os.Stdout, "  Built by ")
-	purple.Fprint(os.Stdout, "Revyl")
-	fmt.Fprintln(os.Stdout, " — the mobile reliability platform")
-	dim.Fprintln(os.Stdout, "  Catch more than rejections. Catch bugs.")
-	fmt.Fprint(os.Stdout, "  ")
-	color.New(color.Underline).Fprintln(os.Stdout, "https://revyl.com")
-	fmt.Println()
+	fmt.Fprintln(os.Stdout, "\n  RandyVentures fork · based on RevylAI/greenlight (MIT)")
 }

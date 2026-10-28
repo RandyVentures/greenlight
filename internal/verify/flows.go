@@ -1,6 +1,6 @@
 package verify
 
-import "github.com/RevylAI/greenlight/internal/codescan"
+import "github.com/RandyVentures/greenlight/internal/codescan"
 
 // Step is one block in a generated Revyl test.
 type Step struct {
