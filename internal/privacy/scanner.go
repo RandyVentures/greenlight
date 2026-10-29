@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/RandyVentures/greenlight/internal/buildsettings"
+	"github.com/RandyVentures/greenlight/internal/sourcepath"
 )
 
 // Finding from privacy scan.
@@ -98,17 +101,17 @@ var trackingSDKPatterns = []struct {
 	Pattern *regexp.Regexp
 	Name    string
 }{
-	{regexp.MustCompile(`(?i)firebase.*analytics`), "Firebase Analytics"},
-	{regexp.MustCompile(`(?i)google.*analytics`), "Google Analytics"},
-	{regexp.MustCompile(`(?i)(fbsdk|facebook.*sdk)`), "Facebook SDK"},
-	{regexp.MustCompile(`(?i)adjust.*sdk`), "Adjust SDK"},
+	{regexp.MustCompile(`(?i)(\bFirebaseAnalytics\b|@react-native-firebase/analytics|firebase/analytics|firebase\.analytics\s*\()`), "Firebase Analytics"},
+	{regexp.MustCompile(`(?i)(\bGoogleAnalytics\b|@google-analytics/)`), "Google Analytics"},
+	{regexp.MustCompile(`(?i)(\bFBSDK\w*|react-native-fbsdk)`), "Facebook SDK"},
+	{regexp.MustCompile(`(?i)(\bAdjustSdk\b|\bimport\s+Adjust\b|react-native-adjust)`), "Adjust SDK"},
 	{regexp.MustCompile(`(?i)appsflyer`), "AppsFlyer"},
 	{regexp.MustCompile(`(?i)(import\s+Amplitude|AmplitudeSwift|amplitude\.init|Amplitude\.instance|amplitude-js|@amplitude/)`), "Amplitude"},
 	{regexp.MustCompile(`(?i)(mixpanel)`), "Mixpanel"},
 	{regexp.MustCompile(`(?i)(@segment/|analytics-react-native)`), "Segment"},
 	{regexp.MustCompile(`(?i)(branch\.io|react-native-branch)`), "Branch"},
-	{regexp.MustCompile(`(?i)(google.*ads|GADMobileAds|admob)`), "Google Ads/AdMob"},
-	{regexp.MustCompile(`(?i)(unity.*ads|UnityAds)`), "Unity Ads"},
+	{regexp.MustCompile(`(?i)(\bGADMobileAds\b|\bGoogleMobileAds\b|react-native-google-mobile-ads|\badmob\b)`), "Google Ads/AdMob"},
+	{regexp.MustCompile(`(?i)\bUnityAds\b`), "Unity Ads"},
 	{regexp.MustCompile(`(?i)(applovin|AppLovinSDK)`), "AppLovin"},
 	{regexp.MustCompile(`(?i)(ironSource|IronSource)`), "ironSource"},
 }
@@ -127,10 +130,10 @@ func Scan(projectPath string) (*ScanResult, error) {
 		result.DeclaredAPIs = parsePrivacyManifest(privacyContent)
 	} else {
 		result.Findings = append(result.Findings, Finding{
-			Severity:  "CRITICAL",
+			Severity:  "WARN",
 			Guideline: "5.1.1",
 			Title:     "No PrivacyInfo.xcprivacy found in project",
-			Detail:    "Privacy manifests are required since May 2024. Missing it triggers ITMS-91061.",
+			Detail:    "No project privacy manifest was found. Check required-reason API use, included SDKs, and the actual distribution archive; source absence alone does not establish an upload rejection.",
 			Fix:       "Create a PrivacyInfo.xcprivacy file in your project. See: developer.apple.com/documentation/bundleresources/privacy-manifest-files",
 		})
 	}
@@ -139,19 +142,14 @@ func Scan(projectPath string) (*ScanResult, error) {
 	detectedAPIs := make(map[string][]FileHit)
 	trackingSDKsFound := make(map[string]bool)
 	hasATT := false
-
-	skipDirs := map[string]bool{
-		"node_modules": true, ".git": true, "Pods": true,
-		"build": true, "dist": true, ".expo": true,
-		"DerivedData": true, "vendor": true,
-	}
+	appleSources := buildsettings.AppleSources(projectPath)
 
 	filepath.Walk(projectPath, func(path string, info os.FileInfo, err error) error {
 		if info != nil && info.Mode()&os.ModeSymlink != 0 {
 			return nil
 		}
 		if err != nil || info.IsDir() {
-			if info != nil && info.IsDir() && skipDirs[info.Name()] {
+			if info != nil && info.IsDir() && sourcepath.SkipDir(info.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -163,6 +161,12 @@ func Scan(projectPath string) (*ScanResult, error) {
 		}
 
 		relPath, _ := filepath.Rel(projectPath, path)
+		if !buildsettings.InSources(relPath, appleSources) {
+			return nil
+		}
+		if sourcepath.IsTest(relPath) {
+			return nil
+		}
 		lines, err := readFileLines(path)
 		if err != nil {
 			return nil
@@ -193,7 +197,15 @@ func Scan(projectPath string) (*ScanResult, error) {
 					continue
 				}
 				for _, p := range api.Patterns {
-					if p.MatchString(line) {
+					candidate := line
+					if lang == "swift" && api.Name == "File Timestamp" {
+						for _, name := range []string{"stat", "fstat", "lstat"} {
+							if regexp.MustCompile(`\bfunc\s+`+name+`\s*\(`).MatchString(fullContent) && !regexp.MustCompile(`\b`+name+`\s*\([^,\n]+,\s*&`).MatchString(line) {
+								candidate = regexp.MustCompile(`(^|[^.\w])`+name+`\s*\(`).ReplaceAllString(candidate, "${1}localHelper(")
+							}
+						}
+					}
+					if p.MatchString(candidate) {
 						detectedAPIs[api.APIType] = append(detectedAPIs[api.APIType], FileHit{
 							File: relPath,
 							Line: lineNum + 1,
@@ -249,11 +261,10 @@ func Scan(projectPath string) (*ScanResult, error) {
 	if len(trackingSDKsFound) > 0 && !hasATT {
 		sdkList := strings.Join(result.TrackingSDKs, ", ")
 		result.Findings = append(result.Findings, Finding{
-			Severity:  "CRITICAL",
-			Guideline: "5.1.2",
-			Title:     "Tracking SDKs detected without ATT implementation",
-			Detail:    "Found: " + sdkList + ". App Tracking Transparency prompt is required before any tracking.",
-			Fix:       "Import AppTrackingTransparency and call requestTrackingAuthorization() before initializing any tracking SDK.",
+			Severity: "WARN", Guideline: "5.1.2",
+			Title:  "Analytics or advertising SDK references need tracking review",
+			Detail: "Source references: " + sdkList + ". No ATT call was detected in scanned source. SDK presence alone does not establish cross-company tracking or an ATT requirement.",
+			Fix:    "Verify the shipped SDK configuration and actual data use. Request ATT permission before tracking across other companies’ apps/websites or accessing IDFA, if applicable.",
 		})
 	}
 
@@ -311,7 +322,7 @@ func findPrivacyManifest(root string) (string, string) {
 		if err != nil || info.IsDir() {
 			if info != nil && info.IsDir() {
 				name := info.Name()
-				if name == "node_modules" || name == ".git" || name == "Pods" || name == "build" || name == "DerivedData" {
+				if sourcepath.SkipDir(name) {
 					return filepath.SkipDir
 				}
 			}

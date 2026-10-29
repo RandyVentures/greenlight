@@ -310,3 +310,21 @@ func TestFirstMatchOnly(t *testing.T) {
 		t.Errorf("expected exactly 1 finding (firstMatchOnly), got %d", len(got))
 	}
 }
+
+func TestConfiguredPlistInjectionDoesNotClaimMissingExportDeclaration(t *testing.T) {
+	r := &ExportComplianceRule{}
+	fc := FileContext{RelPath: "App/Info.plist", Language: "plist", Lines: []string{"<plist><dict/></plist>"}, InjectedPlist: map[string]string{"ITSAppUsesNonExemptEncryption": "NO"}}
+	if got := r.Check(fc); len(got) != 0 {
+		t.Fatalf("explicit build injection reported absent: %+v", got)
+	}
+	fc.InjectedPlist = nil
+	if got := r.Check(fc); len(got) == 0 {
+		t.Fatal("genuinely absent declaration not reported")
+	}
+}
+func TestExtensionIsNotASeparateExportComplianceSubmission(t *testing.T) {
+	r := &ExportComplianceRule{}
+	if got := r.Check(FileContext{Language: "plist", RelPath: "Widget/Info.plist", Lines: []string{`<key>NSExtension</key><dict><key>NSExtensionPointIdentifier</key><string>com.apple.widgetkit-extension</string></dict>`}}); len(got) != 0 {
+		t.Fatalf("extension treated as standalone app declaration: %+v", got)
+	}
+}

@@ -239,8 +239,16 @@ func Check(records []Record, current []audit.Check) *audit.Report {
 				for _, m := range matches {
 					if m.Status == "failed" || m.Status == "suspected" {
 						c.Status = "suspected"
+						if m.Confidence == "low" || m.Confidence == "none" || m.Confidence == "" {
+							c.Confidence = "low"
+						} else {
+							c.Confidence = "medium"
+						}
 						c.Evidence += " A matching current check needs attention."
 						break
+					}
+					if m.Status == "passed" && (m.Confidence == "low" || m.Confidence == "none" || m.Confidence == "") && c.Confidence != "none" {
+						c.Confidence = "low"
 					}
 					if m.Status != "passed" {
 						c.Status = "unverified"

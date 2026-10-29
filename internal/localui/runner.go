@@ -17,6 +17,7 @@ import (
 
 	"github.com/RandyVentures/greenlight/internal/asc"
 	"github.com/RandyVentures/greenlight/internal/audit"
+	"github.com/RandyVentures/greenlight/internal/buildsettings"
 	"github.com/RandyVentures/greenlight/internal/checks"
 	"github.com/RandyVentures/greenlight/internal/config"
 	"github.com/RandyVentures/greenlight/internal/history"
@@ -38,6 +39,7 @@ type Preview struct {
 	Height int    `json:"height"`
 }
 type Job struct {
+	Scope          string        `json:"scope"`
 	ID             string        `json:"id"`
 	Status         string        `json:"status"`
 	Steps          []Step        `json:"steps"`
@@ -119,7 +121,11 @@ func (s *Server) start(w http.ResponseWriter, r *http.Request) {
 		}
 		delete(s.jobs, oldest)
 	}
-	s.jobs[id] = &Job{ID: id, Status: "running", Steps: steps, Rows: []Row{}, Images: []Preview{}, Started: time.Now(), Limitations: []string{"Automated checks cover supplied evidence, not Apple's approval decision.", "Source rules are heuristics. Runtime behavior requires testing the candidate build."}}
+	scope := "Source checkout audit · no distribution artifact supplied. This does not inspect the published App Store binary."
+	if selection.Readiness && selection.Artifact != "" {
+		scope = "Local candidate audit · " + filepath.Base(selection.Artifact) + ". Current App Store approval and runtime behavior are separate evidence."
+	}
+	s.jobs[id] = &Job{Scope: scope, ID: id, Status: "running", Steps: steps, Rows: []Row{}, Images: []Preview{}, Started: time.Now(), Limitations: []string{"Automated checks cover supplied evidence, not Apple's approval decision.", "Source rules are heuristics. Runtime behavior requires testing the candidate build."}}
 	var excluded []string
 	if !selection.Screenshots {
 		excluded = append(excluded, "screenshot audit")
@@ -175,6 +181,9 @@ func (s *Server) appendReport(id, group string, report *audit.Report) {
 	defer s.mu.Unlock()
 	j := s.jobs[id]
 	for _, c := range report.Checks {
+		if c.ConfidenceReason == "" {
+			c.ConfidenceReason = confidenceReason(c, group)
+		}
 		title := strings.ReplaceAll(c.ID, "-", " ")
 		if strings.HasPrefix(c.ID, "history.") {
 			title = "Previous issue: " + strings.SplitN(c.Evidence, " Prevention: ", 2)[0]
@@ -279,21 +288,27 @@ func (s *Server) run(id string, selection Selection) {
 }
 
 func (s *Server) runSource(id string, selection Selection) error {
-	r, err := preflight.Run(selection.Project, "", "", false)
+	r, err := preflight.RunForPlatform(selection.Project, "", "", false, selection.Platform)
 	if err != nil {
 		return err
 	}
-	report := &audit.Report{}
+	report := &audit.Report{Limitations: []string{"Source findings are low-confidence heuristics, not confirmed defects. Generated output, dependency caches, and recognized test files are excluded. Inspect the compiled artifact and actual runtime before acting."}}
+	if roots := buildsettings.AppleSources(selection.Project); len(roots) > 0 {
+		report.Limitations = append(report.Limitations, "Source/privacy paths from explicit XcodeGen Apple targets: "+strings.Join(roots, ", ")+". This does not resolve arbitrary build scripts or inspect the shipped binary.")
+	}
 	for _, f := range r.Findings {
 		severity := "warn"
 		if f.Severity == "CRITICAL" || f.Severity == "HIGH" {
 			severity = "block"
 		}
-		status := "suspected"
+		status, confidence, required := "suspected", "low", true
 		if f.Severity == "INFO" {
 			severity = "info"
+			status = "unverified"
+			confidence = "none"
+			required = false
 		}
-		report.Checks = append(report.Checks, audit.Check{ID: f.Title, Status: status, Severity: severity, Confidence: "medium", Required: true, File: f.File, Evidence: f.Detail, Fix: f.Fix, Guideline: f.Doc})
+		report.Checks = append(report.Checks, audit.Check{ID: f.Title, Status: status, Severity: severity, Confidence: confidence, Required: required, File: f.File, Evidence: f.Detail, Fix: f.Fix, Guideline: f.Doc})
 	}
 	if r.Incomplete {
 		report.Checks = append(report.Checks, audit.Check{ID: "source-coverage", Status: "unverified", Severity: "warn", Confidence: "none", Required: true, Evidence: "A source scanner did not complete; findings may be partial."})
@@ -453,4 +468,27 @@ func (s *Server) runASC(ctx context.Context, id string, selection Selection) err
 	}
 	s.appendReport(id, "asc", report)
 	return nil
+}
+
+// Confidence describes the narrow check, never a rejection probability.
+func confidenceReason(c audit.Check, group string) string {
+	if c.Status == "unverified" {
+		return "Insufficient evidence for this check. This is not evidence that the app is broken."
+	}
+	if group == "source" {
+		return "Static source heuristic. Build settings, SDK configuration, and runtime behavior can change the interpretation; no defect is confirmed."
+	}
+	if group == "history" {
+		return "Retest of a linked current check; not independent proof that the original issue recurred or was completely fixed."
+	}
+	if strings.HasPrefix(c.ID, "human.") {
+		return "Developer-recorded, hash-bound attestation; the tool did not independently execute this test."
+	}
+	if group == "screenshots" && c.ID != "dimensions" && c.ID != "alpha-channel" {
+		return "OCR text heuristic. Inspect the highlighted text and image; this is not an Apple review decision."
+	}
+	if c.Confidence == "high" {
+		return "Direct inspection or comparison of the supplied inputs. Confidence applies only to this specific fact, not app approval or runtime behavior."
+	}
+	return "Evidence supports this limited check with context still needed. No calibrated probability is available."
 }

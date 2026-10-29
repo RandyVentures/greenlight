@@ -301,6 +301,11 @@ The new local auditors report each check as:
 | `suspected` | A heuristic matched; inspect the evidence before changing anything. |
 | `unverified` | Evidence is missing, unreadable, unsupported, or outside scope. |
 
+Confidence is visible on each UI finding with an explanation. Missing evidence
+means **unverified**, not a broken feature. Static source findings carry low
+confidence; a source scan of newer development files does not assess the approved
+App Store binary. [Confidence rubric and validation](docs/confidence-and-validation.md).
+
 Reports include confidence, evidence, policy links where applicable, and coverage
 counts. Coverage measures checks evaluated; it is **not** a rejection probability.
 `--exit-code` on local auditors fails for failed/suspected findings or missing

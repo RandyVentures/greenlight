@@ -7,6 +7,9 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/RandyVentures/greenlight/internal/buildsettings"
+	"github.com/RandyVentures/greenlight/internal/sourcepath"
 )
 
 // Scanner walks a project directory and runs pattern-based checks.
@@ -19,10 +22,11 @@ type Scanner struct {
 
 // FileContext holds a scanned file and its lines for pattern matching.
 type FileContext struct {
-	Path     string
-	RelPath  string
-	Lines    []string
-	Language string // "swift", "objc", "typescript", "javascript", "json", "plist"
+	Path          string
+	RelPath       string
+	Lines         []string
+	InjectedPlist map[string]string // explicit consistent XcodeGen values, not compiled metadata
+	Language      string            // "swift", "objc", "typescript", "javascript", "json", "plist"
 }
 
 func NewScanner(root string, verbose bool) *Scanner {
@@ -153,12 +157,7 @@ func dedupOnceRules(rules []Rule, findings []Finding) []Finding {
 
 func (s *Scanner) collectFiles() ([]FileContext, error) {
 	var files []FileContext
-
-	skipDirs := map[string]bool{
-		"node_modules": true, ".git": true, "Pods": true,
-		"build": true, "dist": true, ".expo": true,
-		"DerivedData": true, ".next": true, "vendor": true,
-	}
+	appleSources := buildsettings.AppleSources(s.root)
 
 	err := filepath.Walk(s.root, func(path string, info os.FileInfo, err error) error {
 		if info != nil && info.Mode()&os.ModeSymlink != 0 {
@@ -169,7 +168,7 @@ func (s *Scanner) collectFiles() ([]FileContext, error) {
 		}
 
 		if info.IsDir() {
-			if skipDirs[info.Name()] {
+			if sourcepath.SkipDir(info.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -182,6 +181,13 @@ func (s *Scanner) collectFiles() ([]FileContext, error) {
 
 		relPath, _ := filepath.Rel(s.root, path)
 
+		if lang != "plist" && lang != "json" && !buildsettings.InSources(relPath, appleSources) {
+			return nil
+		}
+		if sourcepath.IsTest(relPath) {
+			return nil
+		}
+
 		// Honor .greenlight.yml ignore globs.
 		if s.cfg.ignores(relPath) {
 			return nil
@@ -192,11 +198,16 @@ func (s *Scanner) collectFiles() ([]FileContext, error) {
 			return nil
 		}
 
+		injected := map[string]string(nil)
+		if lang == "plist" {
+			injected = buildsettings.Injected(s.root, path)
+		}
 		files = append(files, FileContext{
-			Path:     path,
-			RelPath:  relPath,
-			Lines:    lines,
-			Language: lang,
+			Path:          path,
+			RelPath:       relPath,
+			Lines:         lines,
+			Language:      lang,
+			InjectedPlist: injected,
 		})
 		return nil
 	})

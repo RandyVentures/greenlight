@@ -25,8 +25,9 @@ duplicate catalog products are rejected or marked unverified.
 
 Source files must contain an exact quoted ID (single, double, or backtick quotes).
 This is a literal search, not a compiler or data-flow analysis: dead code and
-comments can contain matching literals. IDs fetched from a server or assembled
-at runtime need manual confirmation. Missing or unreadable source evidence cannot
+comments can contain matching literals. IDs fetched from SDK offerings, a server, or assembled
+at runtime need manual confirmation. A missing source literal is **unverified**,
+not a diagnosed purchase failure. Missing or unreadable source evidence cannot
 produce a clean result.
 
 ## StoreKit

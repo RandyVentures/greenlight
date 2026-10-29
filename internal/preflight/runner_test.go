@@ -268,3 +268,28 @@ func TestArchiveFailureKeepsSourceFindings(t *testing.T) {
 		t.Error("source playscan findings were discarded when the archive scan failed")
 	}
 }
+
+func TestExplicitAppleScopeExcludesGooglePlayFindings(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, root, "app/build.gradle", "android { defaultConfig { targetSdk = 30 } }")
+	mustWrite(t, root, "app/src/main/AndroidManifest.xml", `<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.app"><uses-permission android:name="android.permission.READ_SMS"/><application/></manifest>`)
+	mustWrite(t, root, "App/Info.plist", `<plist><dict><key>CFBundleIdentifier</key><string>com.example.app</string></dict></plist>`)
+	r, err := RunForPlatform(root, "", "", false, "ios")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range r.Findings {
+		if f.Source == "playscan" {
+			t.Fatalf("Android finding in explicit Apple audit: %+v", f)
+		}
+	}
+}
+
+func TestBundleNameFallbackDoesNotClaimNoHomeScreenName(t *testing.T) {
+	findings, _ := checkInfoPlistLocal([]byte(`<plist><dict><key>CFBundleName</key><string>Example</string></dict></plist>`), "Info.plist", t.TempDir())
+	for _, f := range findings {
+		if f.Title == "CFBundleDisplayName missing from Info.plist" {
+			t.Fatal("Apple bundle-name fallback ignored")
+		}
+	}
+}

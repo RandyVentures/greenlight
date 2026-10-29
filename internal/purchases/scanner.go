@@ -109,10 +109,10 @@ func Compare(cfg Config, base string) (*audit.Report, error) {
 				c.Evidence = "No source_files configured for " + p.ID
 			}
 		} else if !literal.MatchString(source.String()) {
-			c.Status = "suspected"
-			c.Confidence = "medium"
-			c.Evidence = p.ID + ": no exact quoted literal found."
-			c.Fix = "Check for a product ID typo or confirm how dynamically configured IDs are loaded."
+			c.Status = "unverified"
+			c.Confidence = "none"
+			c.Evidence = p.ID + ": no exact quoted literal found. This does not establish a missing product or broken purchase flow; IDs may come from SDK offerings or server configuration."
+			c.Fix = "Verify the product through the actual offering/catalog and runtime flow, or supply the source that owns the ID."
 		}
 		r.Checks = append(r.Checks, c)
 	}

@@ -116,7 +116,8 @@ Revyl cloud integration is a separate CLI workflow, never an implicit UI step.
 | `internal/localui/web/src/` | React UI, styles, and frontend model tests. |
 | `internal/localui/web/static/` | Committed production assets embedded by Go. |
 | `internal/audit/` | Shared local-auditor status, evidence, and coverage model. |
-| `internal/preflight/`, `codescan/`, `privacy/` | Existing static scanners and aggregation. |
+| `internal/preflight/`, `codescan/`, `privacy/` | Static scanners and aggregation; UI honors explicit Apple platform. |
+| `internal/sourcepath/`, `buildsettings/` | Generated/test exclusions and matching XcodeGen Info.plist injection. |
 | `internal/screenshots/`, `purchases/` | Local evidence auditors used by both UI and CLI. |
 | `internal/asc/`, `checks/` | Read-only Apple client and submission checks. |
 | `internal/guidelines/` | Bundled guideline-summary lookup; not the scanner's rule engine. |
@@ -144,3 +145,5 @@ See [local UI development](local-ui.md), [purchase formats](purchases.md), and
 [guideline freshness](guideline-maintenance.md) for implementation limits.
 
 [Prior checklist crosswalk](checklist-crosswalk.md) · [Rejection lifecycle](rejection-history.md)
+
+[Confidence rubric and validation](confidence-and-validation.md) explains evidence strength and source limits.

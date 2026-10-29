@@ -349,7 +349,12 @@ function ResultRow({ row, images }) {
         </span>
         <span className="result-name">
           <strong>{checkTitle(row)}</strong>
-          <small>{labels[row.group]}</small>
+          <small>
+            {labels[row.group]} ·{' '}
+            {row.confidence === 'none'
+              ? 'Insufficient evidence'
+              : `${row.confidence || 'Unassessed'} confidence`}
+          </small>
         </span>
         <span className={`status-text ${row.status}`}>
           {row.status === 'suspected'
@@ -365,6 +370,7 @@ function ResultRow({ row, images }) {
       {open && (
         <div className="result-detail">
           <p>{row.evidence}</p>
+          {row.confidence_reason && <p className="hint">{row.confidence_reason}</p>}
           {row.file && <code>{row.file}</code>}
           {row.fix && (
             <div className="fix">
@@ -439,6 +445,10 @@ function Results({ job, onBack }) {
 
   return (
     <main className="results enter">
+      <p className="hint">
+        Confidence describes the evidence for each check, not the probability of rejection.
+        Unverified means evidence is missing, not that a feature is broken.
+      </p>
       <div className="results-toolbar">
         <button className="text-button" onClick={onBack}>
           <Icon name="back" size={17} /> Edit checklist
@@ -465,6 +475,7 @@ function Results({ job, onBack }) {
       <div className="results-heading">
         <div>
           <span className="eyebrow">PREFLIGHT COMPLETE</span>
+          {job.scope && <p className="hint">{job.scope}</p>}
           <h1>{verdict(job.summary)}</h1>
           <p>
             {job.summary.checked} of {job.summary.applicable} applicable checks evaluated. Completed

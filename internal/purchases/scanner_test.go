@@ -90,8 +90,8 @@ func TestProductStatesAndLiteralBoundaries(t *testing.T) {
 	writeFixture(t, root, "Products.swift", `let product = "com.example.pro.annual"`)
 	writeFixture(t, root, "asc.json", `{"data":[{"attributes":{"productId":"com.example.pro","inAppPurchaseState":"READY_TO_SUBMIT"}}]}`)
 	r := scanFixture(t, root, cfg)
-	if r.Summary.Suspected != 2 {
-		t.Fatalf("source/ASC state issue missed: %+v", r)
+	if r.Summary.Suspected != 1 || !r.Summary.Incomplete {
+		t.Fatalf("missing source must stay unverified while review-pending catalog remains suspected: %+v", r)
 	}
 	writeFixture(t, root, "asc.json", `{"data":[{"attributes":{"productId":"com.example.pro","state":"REJECTED"}}]}`)
 	r = scanFixture(t, root, cfg)
@@ -115,5 +115,19 @@ func TestConfigTyposAndMissingSourceCannotPass(t *testing.T) {
 	writeFixture(t, root, "bad.json", string(b))
 	if _, err := Scan(path); err == nil {
 		t.Fatal("duplicate expected products accepted")
+	}
+}
+
+func TestDynamicOfferingIDsAreUnknownNotBrokenPurchases(t *testing.T) {
+	root, cfg := purchaseFixture(t)
+	writeFixture(t, root, "Products.swift", `let product = offerings.current?.monthly?.storeProduct`)
+	r := scanFixture(t, root, cfg)
+	for _, c := range r.Checks {
+		if c.ID == "source-product-id" && (c.Status != "unverified" || c.Confidence != "none") {
+			t.Fatalf("runtime offering treated as defect: %+v", c)
+		}
+	}
+	if r.Summary.Failed != 0 || r.Summary.Suspected != 0 || !r.Summary.Incomplete {
+		t.Fatalf("unexpected dynamic catalog interpretation: %+v", r.Summary)
 	}
 }

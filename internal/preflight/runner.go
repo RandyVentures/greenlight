@@ -72,6 +72,12 @@ type Summary struct {
 // the two see different things (source resolves the Gradle model, the archive
 // carries the merged manifest and the native libraries).
 func Run(projectPath string, ipaPath string, androidArtifact string, verbose bool) (*Result, error) {
+	return RunForPlatform(projectPath, ipaPath, androidArtifact, verbose, "")
+}
+
+// RunForPlatform honors an explicit Apple UI selection; the general CLI retains
+// automatic cross-platform detection. It never treats Android policy as Apple policy.
+func RunForPlatform(projectPath string, ipaPath string, androidArtifact string, verbose bool, platform string) (*Result, error) {
 	result := &Result{
 		ProjectPath:     projectPath,
 		IPAPath:         ipaPath,
@@ -94,7 +100,7 @@ func Run(projectPath string, ipaPath string, androidArtifact string, verbose boo
 	// missing a PrivacyInfo.xcprivacy; anywhere else — including a project
 	// that is both, and a project that is neither — they run exactly as before.
 	isIOS, isAndroid := DetectPlatforms(projectPath)
-	runApple := isIOS || !isAndroid
+	runApple := isIOS || !isAndroid || platform == "ios" || platform == "macos"
 	result.IsAndroid = isAndroid
 
 	// Channel for collecting errors (non-fatal; we report what we can).
@@ -186,7 +192,7 @@ func Run(projectPath string, ipaPath string, androidArtifact string, verbose boo
 	//
 	// A cross-platform repo satisfies both this and runApple, so it is checked
 	// against both stores in a single pass.
-	if isAndroid || androidArtifact != "" {
+	if (isAndroid || androidArtifact != "") && platform != "ios" && platform != "macos" {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

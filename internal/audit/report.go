@@ -15,16 +15,17 @@ type Box struct {
 }
 
 type Check struct {
-	ID         string `json:"id"`
-	Status     string `json:"status"`     // passed, failed, suspected, unverified
-	Severity   string `json:"severity"`   // block, warn, info
-	Confidence string `json:"confidence"` // high, medium, low, none
-	Required   bool   `json:"required"`
-	File       string `json:"file,omitempty"`
-	Evidence   string `json:"evidence"`
-	Guideline  string `json:"guideline,omitempty"`
-	Fix        string `json:"fix,omitempty"`
-	Regions    []Box  `json:"regions,omitempty"`
+	ID               string `json:"id"`
+	Status           string `json:"status"`     // passed, failed, suspected, unverified
+	Severity         string `json:"severity"`   // block, warn, info
+	Confidence       string `json:"confidence"` // high, medium, low, none
+	Required         bool   `json:"required"`
+	ConfidenceReason string `json:"confidence_reason,omitempty"`
+	File             string `json:"file,omitempty"`
+	Evidence         string `json:"evidence"`
+	Guideline        string `json:"guideline,omitempty"`
+	Fix              string `json:"fix,omitempty"`
+	Regions          []Box  `json:"regions,omitempty"`
 }
 
 type Summary struct {

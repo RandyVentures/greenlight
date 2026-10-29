@@ -655,9 +655,13 @@ func (r *ExportComplianceRule) Applies(fc FileContext) bool {
 
 func (r *ExportComplianceRule) Check(fc FileContext) []Finding {
 	content := strings.Join(fc.Lines, "\n")
+	// Extensions are submitted inside their containing app, not as a separate encryption declaration.
+	if fc.Language == "plist" && strings.Contains(content, "<key>NSExtension</key>") {
+		return nil
+	}
 	// Already declared — Info.plist uses ITSAppUsesNonExemptEncryption; Expo
 	// app.json uses ios.config.usesNonExemptEncryption.
-	if strings.Contains(content, "ITSAppUsesNonExemptEncryption") ||
+	if fc.InjectedPlist["ITSAppUsesNonExemptEncryption"] != "" || strings.Contains(content, "ITSAppUsesNonExemptEncryption") ||
 		strings.Contains(content, "usesNonExemptEncryption") {
 		return nil
 	}
@@ -669,7 +673,7 @@ func (r *ExportComplianceRule) Check(fc FileContext) []Finding {
 	return []Finding{{
 		Severity: SeverityInfo,
 		Title:    "No encryption export-compliance declaration",
-		Detail:   "Without an export-compliance declaration, App Store Connect asks about export compliance on every upload.",
+		Detail:   "No declaration was resolved in this source plist/config. Check generated build settings, the containing app, and the submitted version’s export-compliance answers. This reminder does not establish a rejected upload or broken feature.",
 		Fix:      "Set ITSAppUsesNonExemptEncryption in Info.plist (or ios.config.usesNonExemptEncryption in app.json): false if you only use exempt encryption like HTTPS, true (with documentation) otherwise.",
 		File:     fc.RelPath,
 	}}

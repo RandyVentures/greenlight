@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/RandyVentures/greenlight/internal/buildsettings"
 )
 
 // AppMeta holds metadata extracted from project config files.
@@ -260,14 +262,15 @@ func checkInfoPlistLocal(data []byte, plistPath, projectPath string) ([]Finding,
 		meta.Version = m[1]
 	}
 
-	// Check for missing CFBundleDisplayName
-	if !strings.Contains(content, "CFBundleDisplayName") {
+	// CFBundleName is Apple's documented fallback when no display name is set.
+	fallback := regexp.MustCompile(`CFBundleName</key>\s*<string>\s*[^<\s][^<]*</string>`).MatchString(content)
+	if !strings.Contains(content, "CFBundleDisplayName") && !fallback && buildsettings.Injected(projectPath, plistPath)["CFBundleDisplayName"] == "" {
 		findings = append(findings, Finding{
 			Source:    "metadata",
 			Severity:  "WARN",
 			Guideline: "2.3",
 			Title:     "CFBundleDisplayName missing from Info.plist",
-			Detail:    "The display name shown under the app icon is not set.",
+			Detail:    "The source plist has no display name and no consistent XcodeGen injection was resolved. Inspect the compiled app; other Xcode build settings may supply it.",
 			Fix:       "Add CFBundleDisplayName to your Info.plist.",
 			File:      relPath,
 		})

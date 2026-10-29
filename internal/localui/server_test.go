@@ -289,6 +289,14 @@ func TestRejectionHistoryPersistsAndRetestsAfterResolution(t *testing.T) {
 		return Job{}
 	}
 	j := run()
+	if !strings.Contains(j.Scope, "Source checkout") {
+		t.Fatal("source scan did not disclose lack of distribution artifact")
+	}
+	for _, row := range j.Rows {
+		if row.ConfidenceReason == "" {
+			t.Fatal("missing confidence explanation")
+		}
+	}
 	seen := false
 	for _, row := range j.Rows {
 		if row.Group == "history" {
@@ -315,5 +323,28 @@ func TestRejectionHistoryPersistsAndRetestsAfterResolution(t *testing.T) {
 	s2.SetHistoryDir(state)
 	if w := request(t, s2, "GET", "/api/history?project=.", nil); !strings.Contains(w.Body.String(), "Missing review notes") {
 		t.Fatal("history lost after server restart")
+	}
+}
+
+func TestSourceInformationalReminderIsNotASuspectedDefect(t *testing.T) {
+	s := testServer(t)
+	if err := os.WriteFile(filepath.Join(s.root, "Info.plist"), []byte(`<plist><dict><key>CFBundleName</key><string>Example</string><key>CFBundleIdentifier</key><string>com.example.app</string></dict></plist>`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	s.jobs["source-info"] = &Job{}
+	if err := s.runSource("source-info", Selection{Project: s.root, Platform: "ios"}); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, r := range s.jobs["source-info"].Rows {
+		if r.ID == "No encryption export-compliance declaration" {
+			found = true
+			if r.Status != "unverified" || r.Required || r.Confidence != "none" {
+				t.Fatalf("informational source reminder became a defect: %+v", r)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("reminder silently disappeared")
 	}
 }
