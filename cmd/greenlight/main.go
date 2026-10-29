@@ -19,6 +19,6 @@ func main() {
 		if !errors.Is(err, cli.ErrThreshold) {
 			fmt.Fprintln(os.Stderr, "Error:", err)
 		}
-		os.Exit(1)
+		os.Exit(cli.ExitCode(err))
 	}
 }

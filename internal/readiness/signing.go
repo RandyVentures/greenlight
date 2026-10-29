@@ -22,11 +22,12 @@ func signing(path, expectedTeam string) []audit.Check {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if err := exec.CommandContext(ctx, "/usr/bin/codesign", "--verify", "--deep", "--strict", path).Run(); err != nil {
+	diagnostic, verifyErr := exec.CommandContext(ctx, "/usr/bin/codesign", "--verify", "--deep", "--strict", path).CombinedOutput()
+	if verifyErr != nil {
 		if ctx.Err() != nil {
 			return unknown("Local code-signature verification timed out.")
 		}
-		return []audit.Check{{ID: "release-signature", Status: "failed", Severity: "block", Confidence: "high", Required: true, File: path, Evidence: "Local strict signature verification failed. This candidate is not distribution-validated."}}
+		return []audit.Check{signatureFailure(path, diagnostic)}
 	}
 	b, err := exec.CommandContext(ctx, "/usr/bin/codesign", "--display", "--entitlements", ":-", path).Output()
 	if err != nil {
@@ -103,4 +104,22 @@ func componentPath(root, info string) string {
 	info = strings.TrimSuffix(info, "Contents/Info.plist")
 	info = strings.TrimSuffix(info, "Info.plist")
 	return filepath.Clean(filepath.Join(root, filepath.FromSlash(info)))
+}
+
+// Trust availability is an environmental prerequisite, not evidence of corrupt
+// app bytes. Keep it required/unverified so it cannot produce a false pass.
+func signatureFailure(path string, diagnostic []byte) audit.Check {
+	text := strings.ToLower(string(diagnostic))
+	c := audit.Check{ID: "release-signature", Status: "failed", Severity: "block", Confidence: "high", Required: true, File: path, Evidence: "Local strict signature verification failed. This candidate is not distribution-validated."}
+	for _, marker := range []string{"cssmerr_tp_not_trusted", "errsecinteractionnotallowed", "user interaction is not allowed", "operation not permitted"} {
+		if strings.Contains(text, marker) {
+			c.Status = "unverified"
+			c.Severity = "warn"
+			c.Confidence = "none"
+			c.Evidence = "Local signing trust/keychain access could not establish verification. A restricted execution environment can cause this; no corrupt-signature claim is made."
+			c.Fix = "Rerun signature verification with normal macOS trust/keychain access and inspect the candidate before changing signing."
+			break
+		}
+	}
+	return c
 }

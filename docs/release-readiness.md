@@ -33,9 +33,9 @@ greenlight readiness --artifact /path/to/Release.xcarchive \
   --evidence /path/to/acceptance.json --exit-code
 ```
 
-Use exactly the same selections and input ordering for both CLI runs. UI bindings
-also include UI selection context; generate and reuse evidence through the same
-interface. A UI binding is not interchangeable with a CLI binding.
+Use exactly the same selections and input ordering for both CLI runs. The UI and full `audit` command include selection context; use the same exact
+settings and paths when sharing their evidence. A binding from the standalone
+`readiness` command is not interchangeable with that full-workflow binding.
 
 Optional CLI flags: `--public-content`, `--third-party-content`, `--cloud-sync`,
 `--safety-sensitive`. Report output paths must be new files. `--exit-code` fails

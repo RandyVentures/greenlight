@@ -20,7 +20,7 @@ import (
 	"github.com/RandyVentures/greenlight/internal/audit"
 )
 
-const Ruleset = "readiness-2026-10-28.2"
+const Ruleset = "readiness-2026-10-29.1"
 
 type Features struct {
 	Purchases         bool `json:"purchases"`

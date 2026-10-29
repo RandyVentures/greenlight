@@ -1,5 +1,8 @@
 # Local React workspace
 
+The UI is optional. Use [`greenlight audit`](agent-cli.md) for the same configured
+workflow without starting a browser or local HTTP server.
+
 [Architecture and diagrams](architecture.md) · [Guideline freshness](guideline-maintenance.md)
 
 ```sh

@@ -102,7 +102,7 @@ func init() {
 	}}
 	resolve.Flags().StringVar(&resolution, "fix", "", "the fix applied; future audits still retest it")
 	var historyExit bool
-	check := &cobra.Command{Use: "check <report.json>", Short: "Retest history against a current readiness or UI report", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+	check := &cobra.Command{Use: "check <report.json>", Short: "Retest history against a current audit, readiness, or UI report", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		data, e := os.ReadFile(args[0])
 		if e != nil {
 			return e
@@ -115,7 +115,7 @@ func init() {
 			return e
 		}
 		if report.Checks == nil && report.Rows == nil {
-			return fmt.Errorf("supply a current readiness or UI JSON report containing checks or rows")
+			return fmt.Errorf("supply a current audit, readiness, or UI JSON report containing checks or rows")
 		}
 		store, e := history.New(stateDir)
 		if e != nil {

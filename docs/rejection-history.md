@@ -83,11 +83,11 @@ greenlight history --project /path/to/app list
 greenlight history --project /path/to/app resolve RECORD_ID \
   --fix 'Replaced screenshots and checked the uploaded set'
 
-# UI JSON export or a readiness report with checks/rows:
+# Headless audit, UI JSON export, or a readiness report with checks/rows:
 greenlight history --project /path/to/app check /path/to/current-report.json --exit-code
 ```
 
 CLI `history check` evaluates only the report supplied; it does not rerun scanners
 or validate the report's age. Supply a fresh report from the candidate under review.
-The UI automatically uses its current run. Inherited CLI reports using a `findings`
+The UI and full headless `audit` command automatically use their current run. Inherited CLI reports using a `findings`
 array instead of `checks`/`rows` are not supported by this command.

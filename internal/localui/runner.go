@@ -27,6 +27,8 @@ import (
 	"github.com/RandyVentures/greenlight/internal/screenshots"
 )
 
+var errAuditBusy = fmt.Errorf("an audit is already running in this workspace")
+
 type Row struct {
 	audit.Check
 	Group string `json:"group"`
@@ -59,9 +61,31 @@ func (s *Server) start(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &selection) {
 		return
 	}
-	if err := selection.Validate(); err != nil {
+	selection, err := s.prepare(selection)
+	if err != nil {
 		apiError(w, err, 400)
 		return
+	}
+	id, err := s.createJob(selection)
+	if err != nil {
+		status := 500
+		if err == errAuditBusy {
+			status = 409
+		}
+		apiError(w, err, status)
+		return
+	}
+	go s.run(id, selection)
+	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(map[string]string{"id": id})
+}
+
+func (s *Server) prepare(selection Selection) (Selection, error) {
+	if selection.SourceFiles != nil {
+		selection.SourceFiles = append([]string{}, selection.SourceFiles...)
+	}
+	if err := selection.Validate(); err != nil {
+		return selection, err
 	}
 	// Resolve every supplied path before accepting work, not just the main folder.
 	paths := []*string{&selection.Project}
@@ -88,26 +112,26 @@ func (s *Server) start(w http.ResponseWriter, r *http.Request) {
 	for _, p := range paths {
 		path, err := s.resolve(*p)
 		if err != nil {
-			apiError(w, err, 400)
-			return
+			return selection, err
 		}
 		*p = path
 	}
 	if info, err := os.Stat(selection.Project); err != nil || !info.IsDir() {
-		apiError(w, fmt.Errorf("choose a project directory"), 400)
-		return
+		return selection, fmt.Errorf("choose a project directory")
 	}
+	return selection, nil
+}
+
+func (s *Server) createJob(selection Selection) (string, error) {
 	steps, _ := Plan(selection)
 	id, err := randomID()
 	if err != nil {
-		apiError(w, err, 500)
-		return
+		return "", err
 	}
 	s.mu.Lock()
 	if s.active != "" {
 		s.mu.Unlock()
-		apiError(w, fmt.Errorf("an audit is already running in this workspace"), 409)
-		return
+		return "", errAuditBusy
 	}
 	// Reports live only in memory; retain at most eight per server session.
 	if len(s.jobs) >= 8 {
@@ -150,9 +174,7 @@ func (s *Server) start(w http.ResponseWriter, r *http.Request) {
 	}
 	s.active = id
 	s.mu.Unlock()
-	go s.run(id, selection)
-	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(map[string]string{"id": id})
+	return id, nil
 }
 
 func (s *Server) job(w http.ResponseWriter, r *http.Request) {

@@ -10,7 +10,57 @@ Based on [RevylAI/greenlight](https://github.com/RevylAI/greenlight). Original
 copyright and MIT license are preserved. This fork is maintained by RandyVentures;
 it is not affiliated with Apple and does not predict or guarantee approval.
 
-## Quick start: open the local UI
+## Quick start: CLI for agents and CI
+
+The **UI is optional**. The full configured audit can run locally as one CLI
+command with JSON output and process exit codes. You need Git and Go 1.24+;
+Node is not required for ordinary builds.
+
+```sh
+git clone https://github.com/RandyVentures/greenlight.git
+cd greenlight
+go build -o build/greenlight ./cmd/greenlight
+
+# Inspect the synthetic example without starting a server or browser:
+./build/greenlight audit --config examples/audit/config.json --plan
+./build/greenlight audit --config examples/audit/config.json --exit-code=false
+```
+
+For the following commands, install `greenlight` on your PATH using the
+[Go installation instructions](#install-the-cli-on-your-path), or substitute the
+absolute path to the binary you built.
+
+For your app, run `greenlight audit init` in its project directory, edit the
+created `greenlight.audit.json`, then run:
+
+```sh
+greenlight audit --config greenlight.audit.json --plan
+greenlight audit --config greenlight.audit.json --output report.json
+```
+
+JSON is the default; `--format terminal` or `--format html` are also available.
+The new `audit` command defaults to exit **0** for a passing selected scope,
+**1** for findings/missing required evidence, and **2** for configuration or
+execution errors. Its report is emitted before a findings-gate failure. The
+example deliberately flags pricing and leaves acceptance evidence unverified.
+
+```mermaid
+flowchart LR
+    Config["Versioned audit config"] --> CLI["greenlight audit"]
+    CLI --> Runner["Shared Go audit runner"]
+    Runner --> Report["JSON, terminal, or HTML report"]
+    Report --> Agent["Agent validates evidence and exit code"]
+    UI["Optional React UI"] -->|"Loopback API"| Runner
+```
+
+`greenlight audit schema` prints the config schema. Paths resolve from the config's
+workspace, not an agent's current directory. Live ASC requires a configured step
+and explicit `--allow-online`; existing credentials stay in Go. Private history
+is read locally, and no audit automatically adds rejection records.
+
+[Agent CLI, config fields, exit contract, and CI examples](docs/agent-cli.md)
+
+## Optional: open the local UI
 
 You need **Git and Go 1.24+**. Node is not required to build or run the committed
 version of the UI.
@@ -107,14 +157,16 @@ opening a browser. Stop with Ctrl+C.
 
 ## How it works
 
-One Go process serves the bundled React interface and runs the existing scanners.
+The headless CLI and optional React interface use the same Go scanners and runner.
+`audit` runs synchronously without HTTP; `ui` serves the browser interface locally.
 There is no separate frontend server, database, or hosted processing service.
 
 ```mermaid
 flowchart LR
-    Browser["React UI in your browser"] <-->|"Authenticated loopback API"| Server["Go local server"]
+    CLI["Headless audit CLI"] --> Runner["Shared in-process audit runner"]
+    Browser["Optional React UI in your browser"] <-->|"Authenticated loopback API"| Server["Go local server"]
     Server --> Plan["Feature selections and checklist"]
-    Plan --> Runner["In-memory audit runner"]
+    Plan --> Runner
     Files["Selected local project and evidence"] --> Runner
     Runner --> Source["Source and privacy scanners"]
     Runner --> Shots["Screenshot checks and local Tesseract"]

@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "workspace": "../..",
+  "selection": {
+    "project": "examples/ui-demo",
+    "platform": "ios",
+    "payments": "revenuecat",
+    "accounts": false,
+    "screenshots": true,
+    "screenshot_path": "examples/screenshots",
+    "display_type": "APP_IPHONE_47",
+    "language": "eng",
+    "products": [{"id": "com.example.pro", "entitlement": "pro"}],
+    "source_files": ["examples/purchases/Products.swift"],
+    "storekit_file": "examples/purchases/Local.storekit",
+    "asc_products_file": "examples/purchases/asc-products.json",
+    "revenuecat_file": "examples/purchases/revenuecat-products.json",
+    "readiness": true,
+    "history": false,
+    "live_asc": false
+  }
+}

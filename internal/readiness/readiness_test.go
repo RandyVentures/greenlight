@@ -191,3 +191,16 @@ func TestExpectedIdentityAndCustomGate(t *testing.T) {
 		t.Fatal("duplicate custom gates accepted")
 	}
 }
+
+func TestUnavailableSigningTrustIsNotAConfirmedBadSignature(t *testing.T) {
+	for _, diagnostic := range []string{"CSSMERR_TP_NOT_TRUSTED", "User interaction is not allowed", "Operation not permitted"} {
+		c := signatureFailure("Synthetic.app", []byte(diagnostic))
+		if c.Status != "unverified" || c.Confidence != "none" || !c.Required {
+			t.Fatalf("trust failure misclassified: %+v", c)
+		}
+	}
+	c := signatureFailure("Synthetic.app", []byte("a sealed resource is missing or invalid"))
+	if c.Status != "failed" || !c.Required {
+		t.Fatal("invalid sealed resource was silently cleared")
+	}
+}

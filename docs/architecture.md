@@ -1,18 +1,21 @@
 # Architecture
 
 Greenlight is a Go CLI with a React workspace embedded into the same binary.
-The UI calls Go packages directly through a loopback API; it does not launch
+The headless `audit` command runs the same Go runner synchronously, without a
+listener or browser. The optional UI calls Go packages through a loopback API; it does not launch
 scanner commands through a shell or upload projects to a hosted backend.
 
 ## Runtime and data flow
 
 ```mermaid
 flowchart TB
+    AgentCLI["greenlight audit --config file"] --> Validate["Shared input validation and workspace boundary"]
+    Validate --> Job["Synchronous headless audit or UI background job"]
     CLI["greenlight ui workspace"] --> Listen["Listen on 127.0.0.1 and generate a session token"]
     Listen --> UI["Serve embedded React assets"]
     UI --> Plan["POST /api/plan: derive check areas"]
     UI --> Start["POST /api/run: validate inputs and workspace paths"]
-    Start --> Job["One background job, kept in memory"]
+    Start --> Validate
     Job --> Source["Existing source, privacy, and metadata scanners"]
     Job --> Screenshots["Image validation and local Tesseract OCR"]
     Job --> Purchases["In-memory purchase configuration comparison"]
@@ -108,6 +111,8 @@ Revyl cloud integration is a separate CLI workflow, never an implicit UI step.
 | `internal/localui/server.go` | Embedded assets, session checks, file browser, loopback server. |
 | `internal/localui/plan.go` | Feature-selection schema, validation, and checklist derivation. |
 | `internal/localui/runner.go` | Background jobs, scanner adapters, thumbnails, coverage, and exclusions. |
+| `internal/cli/audit.go` | Versioned config, schema/init/plan, structured headless output and gate. |
+| `internal/localui/headless.go` | Direct synchronous access to the shared runner; no listener or browser. |
 | `internal/cli/readiness.go` | Readiness and private history CLI commands. |
 | `internal/readiness/` | Candidate/metadata inspection, conditional human gates, SHA-256 evidence binding. |
 | `internal/history/` | Private atomic project history and current-check regression matching. |
@@ -147,3 +152,5 @@ See [local UI development](local-ui.md), [purchase formats](purchases.md), and
 [Prior checklist crosswalk](checklist-crosswalk.md) · [Rejection lifecycle](rejection-history.md)
 
 [Confidence rubric and validation](confidence-and-validation.md) explains evidence strength and source limits.
+
+[Headless agent CLI](agent-cli.md) documents configuration paths, offline defaults, and exit codes.

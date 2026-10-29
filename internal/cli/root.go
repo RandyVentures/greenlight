@@ -31,7 +31,9 @@ Google Play's Developer Program Policies before you submit, catching
 rejection risks so you ship with confidence.
 
 Get started:
-  greenlight preflight .          Run ALL checks — one command, zero uploads
+  greenlight audit --config FILE  Headless configured audit for agents (JSON)
+  greenlight ui .                 Optional local browser UI
+  greenlight preflight .          Existing source/metadata and optional binary scan
   greenlight preflight . --ipa X  Include IPA binary analysis
   greenlight playscan .           Google Play policies + target API deadline
   greenlight scan --app-id ID     Check App Store Connect metadata (needs API key)
