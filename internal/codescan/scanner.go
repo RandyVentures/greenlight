@@ -161,6 +161,9 @@ func (s *Scanner) collectFiles() ([]FileContext, error) {
 	}
 
 	err := filepath.Walk(s.root, func(path string, info os.FileInfo, err error) error {
+		if info != nil && info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
 		if err != nil {
 			return nil // skip errors
 		}

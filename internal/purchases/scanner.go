@@ -60,6 +60,12 @@ func Scan(configPath string) (*audit.Report, error) {
 	if err := readJSON(configPath, &cfg, true); err != nil {
 		return nil, fmt.Errorf("purchase config: %w", err)
 	}
+	return Compare(cfg, filepath.Dir(configPath))
+}
+
+// Compare runs the same checks from in-memory inputs (used by the local UI).
+// Relative evidence paths are resolved against base; no files are written.
+func Compare(cfg Config, base string) (*audit.Report, error) {
 	if len(cfg.Products) == 0 {
 		return nil, fmt.Errorf("configure at least one expected product")
 	}
@@ -70,7 +76,6 @@ func Scan(configPath string) (*audit.Report, error) {
 		}
 		seen[p.ID] = true
 	}
-	base := filepath.Dir(configPath)
 	resolve := func(path string) string {
 		if path == "" || filepath.IsAbs(path) {
 			return path
@@ -94,7 +99,7 @@ func Scan(configPath string) (*audit.Report, error) {
 		source.WriteByte('\n')
 	}
 	for _, p := range cfg.Products {
-		c := audit.Check{ID: "source-product-id", Status: "passed", Severity: "warn", Confidence: "high", Required: true, Evidence: p.ID + ": exact quoted literal found in configured source files.", File: configPath}
+		c := audit.Check{ID: "source-product-id", Status: "passed", Severity: "warn", Confidence: "high", Required: true, Evidence: p.ID + ": exact quoted literal found in configured source files.", File: strings.Join(cfg.SourceFiles, ", ")}
 		literal := regexp.MustCompile("[\"'`]" + regexp.QuoteMeta(p.ID) + "[\"'`]")
 		if len(cfg.SourceFiles) == 0 || len(sourceErrors) > 0 {
 			c.Status = "unverified"

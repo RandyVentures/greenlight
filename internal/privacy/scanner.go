@@ -147,6 +147,9 @@ func Scan(projectPath string) (*ScanResult, error) {
 	}
 
 	filepath.Walk(projectPath, func(path string, info os.FileInfo, err error) error {
+		if info != nil && info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
 		if err != nil || info.IsDir() {
 			if info != nil && info.IsDir() && skipDirs[info.Name()] {
 				return filepath.SkipDir
@@ -302,6 +305,9 @@ func findPrivacyManifest(root string) (string, string) {
 	var content string
 
 	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if info != nil && info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
 		if err != nil || info.IsDir() {
 			if info != nil && info.IsDir() {
 				name := info.Name()

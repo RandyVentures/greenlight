@@ -33,6 +33,29 @@ for screenshots in other languages. Other commands do not require OCR.
 The upstream Homebrew formula installs upstream Greenlight, **not this fork**.
 There are no fork-specific binary releases yet; build from source or use Go.
 
+## Local React workspace
+
+```sh
+greenlight ui /path/to/your/app
+```
+
+Opens a small local interface for selecting iOS/macOS, StoreKit or RevenueCat,
+accounts, tracking, screenshots, and localization. Browse local evidence, review
+the tailored checklist, run the existing scanners, inspect screenshot highlights,
+and export a self-contained HTML or JSON report.
+
+The production React assets are embedded in the Go binary: **no Node server,
+Electron, external fonts, or runtime package downloads**. JavaScript and CSS are
+about **80 KB combined over gzip**. The server listens only on `127.0.0.1`, keeps
+reports in memory, and defaults to offline checks. App Store Connect requests
+require explicitly enabling the optional online check and existing API credentials.
+
+From this repository, run `make ui` and select **Try an example** to inspect the
+included synthetic fixtures. `greenlight ui . --no-open` prints the URL without
+opening a browser. Stop with Ctrl+C.
+
+[UI documentation, scope, and development](docs/local-ui.md)
+
 ## What's added
 
 ### Screenshot auditing

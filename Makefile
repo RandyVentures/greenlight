@@ -2,13 +2,20 @@ BINARY_NAME=greenlight
 VERSION?=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS=-ldflags "-X main.version=$(VERSION)"
 
-.PHONY: build clean test lint install
+.PHONY: build clean test lint install ui-assets ui
 
 build:
 	go build $(LDFLAGS) -o build/$(BINARY_NAME) ./cmd/greenlight
 
 install:
 	go install $(LDFLAGS) ./cmd/greenlight
+
+# React assets are committed and embedded; Node is only needed when editing UI.
+ui-assets:
+	cd internal/localui/web && npm ci && npm run build
+
+ui: build
+	./build/$(BINARY_NAME) ui .
 
 clean:
 	rm -rf build/

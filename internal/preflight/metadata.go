@@ -337,6 +337,9 @@ func findInfoPlists(projectPath string) []string {
 	}
 
 	filepath.Walk(projectPath, func(path string, info os.FileInfo, err error) error {
+		if info != nil && info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
 		if err != nil {
 			return nil
 		}

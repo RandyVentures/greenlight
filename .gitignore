@@ -6,3 +6,4 @@ dist/
 *.p8
 .agents/
 .claude/skills/
+node_modules/
