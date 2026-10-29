@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/RandyVentures/greenlight/internal/buildsettings"
+	"github.com/RandyVentures/greenlight/internal/sourcepath"
 )
 
 // AppMeta holds metadata extracted from project config files.
@@ -333,11 +334,6 @@ func checkInfoPlistLocal(data []byte, plistPath, projectPath string) ([]Finding,
 
 func findInfoPlists(projectPath string) []string {
 	var results []string
-	skipDirs := map[string]bool{
-		"node_modules": true, ".git": true, "Pods": true,
-		"build": true, "dist": true, ".expo": true,
-		"DerivedData": true, "vendor": true,
-	}
 
 	filepath.Walk(projectPath, func(path string, info os.FileInfo, err error) error {
 		if info != nil && info.Mode()&os.ModeSymlink != 0 {
@@ -347,7 +343,7 @@ func findInfoPlists(projectPath string) []string {
 			return nil
 		}
 		if info.IsDir() {
-			if skipDirs[info.Name()] {
+			if sourcepath.SkipDir(info.Name()) {
 				return filepath.SkipDir
 			}
 			return nil

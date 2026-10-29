@@ -3,6 +3,7 @@ package preflight
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -291,5 +292,33 @@ func TestBundleNameFallbackDoesNotClaimNoHomeScreenName(t *testing.T) {
 		if f.Title == "CFBundleDisplayName missing from Info.plist" {
 			t.Fatal("Apple bundle-name fallback ignored")
 		}
+	}
+}
+
+func TestAppleScopeOmitsScratchAndAndroidCopiesButKeepsNativePrivacyIssue(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, root, "eslint.config.js", `export default [{ignores:["android/**"]}]`)
+	mustWrite(t, root, ".tmp/run.xcresult/Info.plist", `<plist><dict/></plist>`)
+	mustWrite(t, root, "android/app/assets/sdk.js", `import Mixpanel from "mixpanel";`)
+	mustWrite(t, root, "ios/App/Info.plist", `<plist><dict><key>CFBundleName</key><string>Example</string><key>ITSAppUsesNonExemptEncryption</key><false/></dict></plist>`)
+	mustWrite(t, root, "ios/App/App.swift", `let value = UserDefaults.standard.string(forKey: "preference")`)
+	r, err := RunForPlatform(root, "", "", false, "ios")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gap := false
+	for _, f := range r.Findings {
+		if f.File == "eslint.config.js" || strings.HasPrefix(f.File, ".tmp/") || strings.HasPrefix(f.File, "android/") {
+			t.Fatalf("nonshipping copy contaminated Apple findings: %+v", f)
+		}
+		if strings.Contains(f.Title, "SDK references") {
+			t.Fatalf("Android SDK reference leaked: %+v", f)
+		}
+		if strings.Contains(f.Title, "User Defaults") {
+			gap = true
+		}
+	}
+	if !gap {
+		t.Fatal("true app-owned privacy gap disappeared")
 	}
 }

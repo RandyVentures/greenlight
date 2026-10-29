@@ -9,7 +9,7 @@ import (
 
 func SkipDir(name string) bool {
 	switch name {
-	case "node_modules", ".git", "Pods", "build", "dist", "out", ".expo", "DerivedData", ".next", "vendor", ".build", ".swiftpm", ".venv", ".cache":
+	case "node_modules", ".git", ".tmp", "Pods", "build", "dist", "out", ".expo", "DerivedData", ".next", "vendor", ".build", ".swiftpm", ".venv", ".cache":
 		return true
 	}
 	return false
@@ -23,6 +23,18 @@ func IsTest(path string) bool {
 	}
 	for _, part := range strings.Split(filepath.ToSlash(path), "/") {
 		if part == "__tests__" || strings.HasSuffix(part, "Tests") || strings.HasSuffix(part, "UITests") {
+			return true
+		}
+	}
+	return false
+}
+
+// IsToolingFile identifies build/lint/test configuration rather than app UI.
+// Capacitor and Expo runtime app configs intentionally remain in scope.
+func IsToolingFile(path string) bool {
+	base := strings.ToLower(filepath.Base(path))
+	for _, prefix := range []string{"eslint.config.", "vite.config.", "vitest.config.", "playwright.config.", "webpack.config.", "rollup.config.", "prettier.config.", "postcss.config.", "tailwind.config."} {
+		if strings.HasPrefix(base, prefix) {
 			return true
 		}
 	}

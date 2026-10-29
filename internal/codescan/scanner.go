@@ -184,7 +184,7 @@ func (s *Scanner) collectFiles() ([]FileContext, error) {
 		if lang != "plist" && lang != "json" && !buildsettings.InSources(relPath, appleSources) {
 			return nil
 		}
-		if sourcepath.IsTest(relPath) {
+		if sourcepath.IsTest(relPath) || sourcepath.IsToolingFile(relPath) {
 			return nil
 		}
 

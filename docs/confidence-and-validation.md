@@ -23,9 +23,11 @@ or server configuration. Concrete supplied-catalog mismatches remain actionable.
 ## Source scope and false-positive controls
 
 - The local UI honors the selected Apple platform. General `preflight` retains
-  automatic cross-platform scanning; an iOS UI run excludes Google Play policy.
-- Common generated/dependency output (`out`, `.next`, `.build`, etc.) and recognized
-  test files/directories are excluded from source/privacy heuristics. This is not
+  automatic cross-platform scanning; an iOS UI run excludes Google Play policy
+  and copied Android source/assets.
+- Common scratch/generated/dependency output (`.tmp`, `out`, `.next`, `.build`, etc.) and recognized
+  test files/directories and build/lint configs are excluded from source/privacy heuristics.
+  Runtime Capacitor/Expo app configs remain in scope. This is not
   a complete build-graph resolver. Inspect final candidate artifacts separately.
 - When a project has explicit shipping Apple target source paths in XcodeGen,
   source/privacy scanning uses those paths. Unknown source syntax falls back to a
@@ -33,6 +35,8 @@ or server configuration. Concrete supplied-catalog mismatches remain actionable.
   artifact review. Separate marketing websites are not native app metadata.
 - SDK rules use specific SDK symbols/module names rather than broad prose matches.
   An analytics/advertising SDK reference alone does not establish tracking or ATT.
+  Attribution setter names in purchase SDK wrappers do not prove that the named
+  advertising SDK is installed. Real SDK symbol/import cases remain tested.
 - A same-file Swift helper named `stat` is distinguished from native calls; explicit
   Darwin calls and ordinary output-buffer calls remain detectable. Arbitrary
   aliases, wrappers, and overloads still need manual/build-level inspection.
@@ -77,3 +81,21 @@ rejection probability. Hosted CI success must be checked separately.
 
 Review date: 2026-10-28. This scoped review does not certify every inherited rule
 or automatically keep them current; see [guideline maintenance](guideline-maintenance.md).
+
+## Second-stack validation
+
+A separate approved React/Capacitor application was checked using a saved,
+checksum-matched submitted IPA, its archive, selected public-asset allowlist,
+and dated purchase snapshots. This exposed additional scratch-result, copied
+Android-asset, tooling-config, and SDK-wrapper false positives. Generic fixtures
+cover these corrections while retaining genuine app-owned required-reason API
+warnings. Platform wording behind runtime guards remains a low-confidence
+context check; the tool does not silently certify every branch as unreachable.
+
+An approved application can still merit a privacy-declaration review. A manifest
+inside an SDK bundle is evidence about that SDK; do not automatically use it to
+clear every API call in app-owned source. Review the app target, compiled artifact,
+and Apple's [required-reason API guidance](https://developer.apple.com/documentation/technotes/tn3183-adding-required-reason-api-entries-to-your-privacy-manifest).
+No rule is waived because an application was approved, and a retained warning is
+not a prediction that Apple will reject the next update. Two applications and
+synthetic regression fixtures do not constitute a statistically calibrated benchmark.

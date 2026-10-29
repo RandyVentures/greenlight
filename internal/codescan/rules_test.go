@@ -328,3 +328,14 @@ func TestExtensionIsNotASeparateExportComplianceSubmission(t *testing.T) {
 		t.Fatalf("extension treated as standalone app declaration: %+v", got)
 	}
 }
+
+func TestTrackingRuleDistinguishesWrapperSettersFromRealSDKs(t *testing.T) {
+	rule := ruleByID(t, "missing-att")
+	wrapper := FileContext{Language: "javascript", RelPath: "sdk-wrapper.js", Lines: []string{`class Purchases {setAppsflyerID(id) {} setMixpanelDistinctID(id) {}}`}}
+	if got := rule.Check(wrapper); len(got) != 0 {
+		t.Fatalf("wrapper setters claimed tracking: %+v", got)
+	}
+	if got := rule.Check(swiftCtx("import AppsFlyerLib")); len(got) == 0 {
+		t.Fatal("real SDK import missed")
+	}
+}

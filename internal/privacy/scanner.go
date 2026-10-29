@@ -105,9 +105,9 @@ var trackingSDKPatterns = []struct {
 	{regexp.MustCompile(`(?i)(\bGoogleAnalytics\b|@google-analytics/)`), "Google Analytics"},
 	{regexp.MustCompile(`(?i)(\bFBSDK\w*|react-native-fbsdk)`), "Facebook SDK"},
 	{regexp.MustCompile(`(?i)(\bAdjustSdk\b|\bimport\s+Adjust\b|react-native-adjust)`), "Adjust SDK"},
-	{regexp.MustCompile(`(?i)appsflyer`), "AppsFlyer"},
+	{regexp.MustCompile(`(?i)(\bAppsFlyerLib\b|\bappsflyer\b|react-native-appsflyer)`), "AppsFlyer"},
 	{regexp.MustCompile(`(?i)(import\s+Amplitude|AmplitudeSwift|amplitude\.init|Amplitude\.instance|amplitude-js|@amplitude/)`), "Amplitude"},
-	{regexp.MustCompile(`(?i)(mixpanel)`), "Mixpanel"},
+	{regexp.MustCompile(`(?i)(\bMixpanel\b|mixpanel-browser|react-native-mixpanel)`), "Mixpanel"},
 	{regexp.MustCompile(`(?i)(@segment/|analytics-react-native)`), "Segment"},
 	{regexp.MustCompile(`(?i)(branch\.io|react-native-branch)`), "Branch"},
 	{regexp.MustCompile(`(?i)(\bGADMobileAds\b|\bGoogleMobileAds\b|react-native-google-mobile-ads|\badmob\b)`), "Google Ads/AdMob"},
@@ -117,13 +117,17 @@ var trackingSDKPatterns = []struct {
 }
 
 // Scan runs the privacy analysis on a project directory.
-func Scan(projectPath string) (*ScanResult, error) {
+func Scan(projectPath string) (*ScanResult, error) { return ScanForPlatform(projectPath, "") }
+
+// ScanForPlatform keeps Android copies out of an explicitly Apple-only audit.
+func ScanForPlatform(projectPath, platform string) (*ScanResult, error) {
+	appleOnly := platform == "ios" || platform == "macos"
 	result := &ScanResult{
 		ProjectPath: projectPath,
 	}
 
 	// 1. Find PrivacyInfo.xcprivacy
-	privacyInfoPath, privacyContent := findPrivacyManifest(projectPath)
+	privacyInfoPath, privacyContent := findPrivacyManifest(projectPath, appleOnly)
 	result.HasPrivacyInfo = privacyInfoPath != ""
 
 	if result.HasPrivacyInfo {
@@ -149,7 +153,7 @@ func Scan(projectPath string) (*ScanResult, error) {
 			return nil
 		}
 		if err != nil || info.IsDir() {
-			if info != nil && info.IsDir() && sourcepath.SkipDir(info.Name()) {
+			if info != nil && info.IsDir() && (sourcepath.SkipDir(info.Name()) || (appleOnly && strings.EqualFold(info.Name(), "android"))) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -164,7 +168,7 @@ func Scan(projectPath string) (*ScanResult, error) {
 		if !buildsettings.InSources(relPath, appleSources) {
 			return nil
 		}
-		if sourcepath.IsTest(relPath) {
+		if sourcepath.IsTest(relPath) || sourcepath.IsToolingFile(relPath) {
 			return nil
 		}
 		lines, err := readFileLines(path)
@@ -311,7 +315,7 @@ func formatHits(hits []FileHit) string {
 	return s
 }
 
-func findPrivacyManifest(root string) (string, string) {
+func findPrivacyManifest(root string, appleOnly bool) (string, string) {
 	var found string
 	var content string
 
@@ -322,7 +326,7 @@ func findPrivacyManifest(root string) (string, string) {
 		if err != nil || info.IsDir() {
 			if info != nil && info.IsDir() {
 				name := info.Name()
-				if sourcepath.SkipDir(name) {
+				if sourcepath.SkipDir(name) || (appleOnly && strings.EqualFold(name, "android")) {
 					return filepath.SkipDir
 				}
 			}

@@ -13,7 +13,18 @@ func TestGeneratedAndTestInputsAreExcluded(t *testing.T) {
 			t.Errorf("production excluded: %s", p)
 		}
 	}
-	if !SkipDir("out") || !SkipDir(".build") || SkipDir("Shared") {
+	if !SkipDir(".tmp") || !SkipDir("out") || !SkipDir(".build") || SkipDir("Shared") {
 		t.Fatal("source directory filtering changed")
+	}
+}
+
+func TestToolingConfigIsNotAppTextButRuntimeConfigRemains(t *testing.T) {
+	if !IsToolingFile("eslint.config.js") || !IsToolingFile("tools/vite.config.ts") {
+		t.Fatal("tooling not recognized")
+	}
+	for _, p := range []string{"capacitor.config.ts", "app.config.ts", "src/app/config.ts", "src/Page.tsx"} {
+		if IsToolingFile(p) {
+			t.Fatalf("runtime config excluded: %s", p)
+		}
 	}
 }

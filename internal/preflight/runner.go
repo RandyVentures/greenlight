@@ -90,6 +90,17 @@ func RunForPlatform(projectPath string, ipaPath string, androidArtifact string, 
 		return nil, fmt.Errorf("config: %w", err)
 	}
 
+	// The explicit Apple UI scope excludes copied Android source/assets as well
+	// as Play policy checks. Preserve user overrides without mutating their config.
+	if platform == "ios" || platform == "macos" {
+		copyCfg := codescan.Config{}
+		if cfg != nil {
+			copyCfg = *cfg
+			copyCfg.Ignore = append([]string(nil), cfg.Ignore...)
+		}
+		copyCfg.Ignore = append(copyCfg.Ignore, "android")
+		cfg = &copyCfg
+	}
 	var (
 		mu sync.Mutex
 		wg sync.WaitGroup
@@ -162,7 +173,7 @@ func RunForPlatform(projectPath string, ipaPath string, androidArtifact string, 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			privResult, err := privacy.Scan(projectPath)
+			privResult, err := privacy.ScanForPlatform(projectPath, platform)
 			if err != nil {
 				errs <- err
 				return

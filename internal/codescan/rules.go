@@ -88,14 +88,14 @@ func AllRules() []Rule {
 		// HIGH - Likely rejection
 		&PatternRule{
 			id:        "missing-att",
-			title:     "Ad/tracking SDK without ATT implementation",
+			title:     "Analytics or advertising SDK references need consent review",
 			guideline: "5.1.2",
 			severity:  SeverityHigh,
-			detail:    "Using advertising or tracking SDKs requires App Tracking Transparency.",
-			fix:       "Implement ATT prompt before any tracking. Add NSUserTrackingUsageDescription to Info.plist.",
+			detail:    "SDK references were found without an ATT call in scanned source. A reference alone does not establish installed tracking code or cross-company tracking.",
+			fix:       "Inspect the shipped SDK and actual data use. If cross-company tracking or IDFA access occurs, obtain ATT permission first.",
 			languages: []string{"swift", "objc", "typescript", "javascript"},
 			patterns: []*regexp.Regexp{
-				regexp.MustCompile(`(?i)(firebase.*analytics|google.*analytics|facebook.*sdk|fbsdk|adjust.*sdk|appsflyer|mixpanel)`),
+				regexp.MustCompile(`(?i)(\bFirebaseAnalytics\b|@react-native-firebase/analytics|firebase/analytics|firebase\.analytics\s*\(|\bGoogleAnalytics\b|\bFBSDK\w*|react-native-fbsdk|\bAdjustSdk\b|\bAppsFlyerLib\b|\bappsflyer\b|\bmixpanel\b)`),
 				regexp.MustCompile(`(?i)(import\s+Amplitude|AmplitudeSwift|amplitude\.init|Amplitude\.instance|amplitude-js|@amplitude/)`),
 				regexp.MustCompile(`(?i)(import.*@segment/|analytics-react-native|SegmentAnalytics|createClient.*writeKey)`),
 			},
@@ -163,8 +163,8 @@ func AllRules() []Rule {
 			title:     "Reference to competing platform",
 			guideline: "2.3",
 			severity:  SeverityWarn,
-			detail:    "Mentioning other platforms (Android, Google Play, etc.) in user-facing strings may cause rejection.",
-			fix:       "Remove references to competing platforms from all user-visible text.",
+			detail:    "A platform reference matched in source. Confirm whether the text is reachable in the selected Apple build and relevant to actual functionality; a match in a web/Android-only branch does not establish an App Store issue.",
+			fix:       "Inspect the containing platform guard and actual Apple-build screen. Review current policy before changing copy; do not remove legitimate branch-specific functionality solely because of a source match.",
 			languages: []string{"swift", "objc", "typescript", "javascript"},
 			patterns: []*regexp.Regexp{
 				// Only flag the keyword inside a string/JSX literal — user-facing
