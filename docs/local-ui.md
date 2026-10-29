@@ -23,7 +23,9 @@ paths. To work outside the current boundary, restart with the intended workspace
 
 Select StoreKit or RevenueCat to add product ID comparison and the relevant
 catalog inputs. Enter expected product IDs; RevenueCat also asks for entitlement
-identifiers. Catalogs use the same [purchase snapshot formats](purchases.md) as the
+identifiers. For a mixed catalog, leave the entitlement blank on consumables that
+do not grant one; at least one expected entitlement is required in RevenueCat mode.
+Catalogs use the same [purchase snapshot formats](purchases.md) as the
 CLI. Missing catalogs or source evidence remain unverified. Extra catalog products
 are allowed so legacy subscriptions do not need to be removed.
 

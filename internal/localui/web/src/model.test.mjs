@@ -6,6 +6,17 @@ test('purchase providers require appropriate evidence without blocking optional 
   assert.equal(validate(initial), '');
   assert.match(validate({ ...initial, payments: 'storekit' }), /product ID/);
   assert.equal(validate({ ...initial, payments: 'storekit', products: [{ id: 'pro' }] }), '');
+  assert.equal(
+    validate({
+      ...initial,
+      payments: 'revenuecat',
+      products: [
+        { id: 'monthly', entitlement: 'pro' },
+        { id: 'racepass', entitlement: '' },
+      ],
+    }),
+    '',
+  );
   assert.match(
     validate({ ...initial, payments: 'revenuecat', products: [{ id: 'pro' }] }),
     /entitlement/,

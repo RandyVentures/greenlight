@@ -57,8 +57,8 @@ export function validate(s) {
   if (s.screenshots && !s.screenshot_path.trim()) return 'Choose a screenshot folder or file.';
   if (s.payments !== 'none' && (!s.products.length || s.products.some((p) => !p.id.trim())))
     return 'Add an expected product ID for each purchase row.';
-  if (s.payments === 'revenuecat' && s.products.some((p) => !p.entitlement?.trim()))
-    return 'Add the expected entitlement for each RevenueCat product.';
+  if (s.payments === 'revenuecat' && !s.products.some((p) => p.entitlement?.trim()))
+    return 'Add at least one expected RevenueCat entitlement; leave consumables blank.';
   if (s.live_asc && (!s.app_id.trim() || !s.version_id.trim()))
     return 'Enter the app ID and version resource ID for App Store Connect.';
   return '';

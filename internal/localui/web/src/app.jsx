@@ -1030,7 +1030,9 @@ function App() {
                         </label>
                         {selection.payments === 'revenuecat' && (
                           <label className="field">
-                            <span className="field-label">Entitlement</span>
+                            <span className="field-label">
+                              Entitlement <small>Blank for consumables</small>
+                            </span>
                             <input
                               placeholder="pro"
                               value={p.entitlement}

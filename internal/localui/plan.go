@@ -102,9 +102,17 @@ func (s Selection) Validate() error {
 			if strings.TrimSpace(p.ID) == "" {
 				return fmt.Errorf("enter a product ID for each row")
 			}
-			if s.Payments == "revenuecat" && strings.TrimSpace(p.Entitlement) == "" {
-				return fmt.Errorf("enter an expected entitlement for each RevenueCat product")
+		}
+	}
+	if s.Payments == "revenuecat" {
+		hasEntitlement := false
+		for _, p := range s.Products {
+			if strings.TrimSpace(p.Entitlement) != "" {
+				hasEntitlement = true
 			}
+		}
+		if !hasEntitlement {
+			return fmt.Errorf("enter at least one expected RevenueCat entitlement; consumable products may leave it blank")
 		}
 	}
 	if s.LiveASC && (s.AppID == "" || s.VersionID == "") {

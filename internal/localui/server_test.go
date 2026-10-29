@@ -133,6 +133,10 @@ func TestSelectionDrivesPlanAndDisabledPurchasesIgnoreStaleRows(t *testing.T) {
 	if err := base.Validate(); err == nil {
 		t.Fatal("RevenueCat expected entitlement missing but accepted")
 	}
+	base.Products = []purchases.Product{{ID: "monthly", Entitlement: "pro"}, {ID: "racepass"}}
+	if err := base.Validate(); err != nil {
+		t.Fatalf("consumable without entitlement blocked mixed catalog: %v", err)
+	}
 }
 
 func TestAuditJobReportsMissingEvidenceAndManualFlows(t *testing.T) {
