@@ -8,13 +8,58 @@ Based on [RevylAI/greenlight](https://github.com/RevylAI/greenlight). Original
 copyright and MIT license are preserved. This fork is maintained by RandyVentures;
 it is not affiliated with Apple and does not predict or guarantee approval.
 
-## Install
+## Quick start: open the local UI
+
+You need **Git and Go 1.24+**. Node is not required to build or run the committed
+version of the UI.
+
+```sh
+git clone https://github.com/RandyVentures/greenlight.git
+cd greenlight
+go build -o build/greenlight ./cmd/greenlight
+./build/greenlight ui .
+```
+
+Your browser opens to a local URL. Select **Try an example** to run the included
+synthetic project, screenshot, and purchase catalogs. It deliberately flags
+pricing/trial copy and leaves actual purchase flows unverified.
+
+To audit your own app, stop the server with **Ctrl+C**, then run:
+
+```sh
+./build/greenlight ui /absolute/path/to/your/app
+```
+
+Choose the platform and features, select local evidence, review the generated
+checklist, and select **Run preflight**. Expand findings or export HTML/JSON. The
+workspace argument sets the file browser's boundary; use a parent directory if
+your project and evidence live in sibling folders.
+
+For a fixed port or to open the URL manually:
+
+```sh
+./build/greenlight ui /absolute/path/to/your/app --port 8080 --no-open
+```
+
+Use the **full URL printed by the command**, including its session fragment.
+Reports remain in memory until exported; stopping the server clears them.
+
+**Guideline freshness:** scans use rules bundled with your installed version.
+Greenlight does **not** fetch or apply the latest Apple guidelines automatically.
+See [how rules and updates work](#apple-guidelines-and-rule-updates).
+
+## Install the CLI on your PATH
 
 With Go 1.24 or newer:
 
 ```sh
 go install github.com/RandyVentures/greenlight/cmd/greenlight@main
 ```
+
+Ensure your Go binary directory (`go env GOBIN`, or `$(go env GOPATH)/bin` when
+GOBIN is unset) is on your PATH. Then you can run `greenlight ui /path/to/app`
+from any directory. The quick-start commands use the built binary directly and
+do not require a PATH change.
 
 Or build this fork:
 
@@ -55,6 +100,94 @@ included synthetic fixtures. `greenlight ui . --no-open` prints the URL without
 opening a browser. Stop with Ctrl+C.
 
 [UI documentation, scope, and development](docs/local-ui.md)
+
+## How it works
+
+One Go process serves the bundled React interface and runs the existing scanners.
+There is no separate frontend server, database, or hosted processing service.
+
+```mermaid
+flowchart LR
+    Browser["React UI in your browser"] <-->|"Authenticated loopback API"| Server["Go local server"]
+    Server --> Plan["Feature selections and checklist"]
+    Plan --> Runner["In-memory audit runner"]
+    Files["Selected local project and evidence"] --> Runner
+    Runner --> Source["Source and privacy scanners"]
+    Runner --> Shots["Screenshot checks and local Tesseract"]
+    Runner --> Purchases["Purchase catalog comparison"]
+    Runner --> Manual["Manual checks stay unverified"]
+    Runner -.->|"Explicit online opt-in"| Apple["App Store Connect and listing URLs"]
+    Runner --> Results["Evidence, confidence, and coverage"]
+    Results --> Server
+    Browser --> Export["HTML or JSON downloaded locally"]
+```
+
+```mermaid
+sequenceDiagram
+    actor Developer
+    participant Browser as React UI
+    participant Server as Local Go server
+    participant Runner as Audit runner
+    Developer->>Browser: Choose features and local evidence
+    Browser->>Server: POST /api/plan
+    Server-->>Browser: Applicable check areas
+    Developer->>Browser: Run preflight
+    Browser->>Server: POST /api/run
+    Server->>Runner: Start one background audit
+    Server-->>Browser: 202 and job ID
+    loop While the audit runs
+        Browser->>Server: GET /api/jobs/{id}
+        Server-->>Browser: Actual step states and findings
+    end
+    Runner-->>Server: Completed checks and coverage
+    Server-->>Browser: Results on the next poll
+    Developer->>Browser: Inspect evidence or export a report
+```
+
+Core source checks always run. Feature selections add checks; they do not suppress
+code patterns that could reveal an undeclared feature. Excluded areas are recorded
+as not selected, while missing evidence and manual checks remain unverified.
+
+[Architecture, module map, and data boundaries](docs/architecture.md)
+
+## Apple guidelines and rule updates
+
+**No automatic guideline synchronization is implemented.** These are separate
+pieces of the tool:
+
+| Component | Where its information comes from | Updated during a scan? |
+| --- | --- | --- |
+| `guidelines list/search/show` | Curated summaries embedded from `internal/guidelines/data/guidelines.json` | No; bundled with the binary. |
+| Scanner rules | Go implementations for patterns, manifests, metadata, binaries, screenshots, and catalogs | No; changes require reviewed code and a rebuilt binary. |
+| Screenshot dimensions | A supported subset in `internal/screenshots/dimensions.go`, checked on 2026-10-28 | No; unknown display types stay unverified. |
+| ASC app/version/build information | Read-only Apple API requests when `scan` or the UI's online check is explicitly run | Yes, app data is fetched; policy rules are not updated. |
+| Purchase catalogs | The local snapshots you supply | No; refresh snapshots yourself before an audit. |
+
+The guideline summaries are not a complete, authoritative copy of Apple's current
+policy. The inherited database has no embedded last-reviewed timestamp. The dated
+screenshot-size review does not establish freshness for every scanner rule.
+Findings link to official policy where available so you can inspect the source.
+
+Always consult the [current Apple App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/)
+and [screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/)
+for policy-sensitive decisions. Fetching new policy text alone would not update
+the executable checks: maintainers must interpret the change, amend rules, and add
+regression fixtures. There is no `guidelines update` command or scheduled policy
+monitor in this repository.
+
+To get the latest code **published in this fork**, update and rebuild:
+
+```sh
+# Inside an existing clean clone; stop the running UI first.
+git pull --ff-only origin main
+go build -o build/greenlight ./cmd/greenlight
+./build/greenlight ui /absolute/path/to/your/app
+```
+
+For a Go-installed binary, rerun
+`go install github.com/RandyVentures/greenlight/cmd/greenlight@main` and restart
+the UI. Updating the tool is not proof that every rule matches Apple's latest
+policy. [Policy maintenance and freshness details](docs/guideline-maintenance.md)
 
 ## What's added
 

@@ -1,5 +1,7 @@
 # Local React workspace
 
+[Architecture and diagrams](architecture.md) · [Guideline freshness](guideline-maintenance.md)
+
 ```sh
 greenlight ui /path/to/your/app
 # Or choose projects underneath a common parent:
@@ -101,3 +103,7 @@ unauthorized requests, path escapes, missing evidence, report escaping, and jobs
 The included example is synthetic and is available when the opened workspace
 contains this repository's `examples/ui-demo` directory. It performs no purchase,
 login, account deletion, or online ASC operation.
+
+The UI uses the installed version's bundled checks. It does not automatically
+download Apple's latest policy or update scanner rules. Enabling ASC fetches app
+data, not new guidelines; see [guideline maintenance](guideline-maintenance.md).
