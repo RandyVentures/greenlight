@@ -19,19 +19,22 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/RandyVentures/greenlight/internal/history"
 )
 
 //go:embed web/static/*
 var assets embed.FS
 
 type Server struct {
-	root   string
-	token  string
-	host   string
-	mu     sync.Mutex
-	jobs   map[string]*Job
-	active string
-	ctx    context.Context
+	root    string
+	token   string
+	host    string
+	mu      sync.Mutex
+	jobs    map[string]*Job
+	active  string
+	ctx     context.Context
+	history *history.Store
 }
 
 func New(ctx context.Context, root string) (*Server, error) {
@@ -51,7 +54,21 @@ func New(ctx context.Context, root string) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Server{root: abs, token: token, jobs: map[string]*Job{}, ctx: ctx}, nil
+	store, err := history.New("")
+	if err != nil {
+		return nil, err
+	}
+	return &Server{root: abs, token: token, jobs: map[string]*Job{}, ctx: ctx, history: store}, nil
+}
+
+// SetHistoryDir is a CLI-only override; browsers cannot select the state directory.
+func (s *Server) SetHistoryDir(dir string) error {
+	store, err := history.New(dir)
+	if err != nil {
+		return err
+	}
+	s.history = store
+	return nil
 }
 
 func randomID() (string, error) {
@@ -122,6 +139,8 @@ func (s *Server) Handler() http.Handler {
 				json.NewEncoder(w).Encode(plan)
 			case r.URL.Path == "/api/run" && r.Method == "POST":
 				s.start(w, r)
+			case r.URL.Path == "/api/history" && (r.Method == "GET" || r.Method == "POST"):
+				s.historyAPI(w, r)
 			case strings.HasPrefix(r.URL.Path, "/api/jobs/") && r.Method == "GET":
 				s.job(w, r)
 			default:

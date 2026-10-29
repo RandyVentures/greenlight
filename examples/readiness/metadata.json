@@ -1,0 +1,16 @@
+{
+  "bundle_id": "com.example.app",
+  "version": "1.0",
+  "build": "1",
+  "name": "Example App",
+  "subtitle": "Synthetic release example",
+  "description": "Replace this synthetic listing with the current release description.",
+  "keywords": "example,utility",
+  "privacy_url": "https://example.test/privacy",
+  "support_url": "https://example.test/support",
+  "terms_url": "https://example.test/terms",
+  "review_notes": "Synthetic example. Record the actual reviewer access and feature instructions privately.",
+  "additional_reviews": [
+    {"id": "share-sheet", "description": "Test the share extension on this exact candidate, including cancellation and offline behavior."}
+  ]
+}

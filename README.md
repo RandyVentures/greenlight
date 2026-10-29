@@ -2,7 +2,9 @@
 
 Free, open-source tools for finding App Store submission problems before you submit.
 Local screenshot OCR, purchase catalog comparison, and checks against the exact
-App Store version and attached build you intend to submit.
+App Store version and attached build you intend to submit. The release checklist
+also covers candidate packaging and human acceptance, with private local rejection
+history to help catch repeat issues.
 
 Based on [RevylAI/greenlight](https://github.com/RevylAI/greenlight). Original
 copyright and MIT license are preserved. This fork is maintained by RandyVentures;
@@ -43,6 +45,8 @@ For a fixed port or to open the URL manually:
 
 Use the **full URL printed by the command**, including its session fragment.
 Reports remain in memory until exported; stopping the server clears them.
+Rejection records saved explicitly through **Rejection history** persist privately
+in your OS user configuration directory, outside your app repository by default.
 
 **Guideline freshness:** scans use rules bundled with your installed version.
 Greenlight does **not** fetch or apply the latest Apple guidelines automatically.
@@ -91,7 +95,7 @@ and export a self-contained HTML or JSON report.
 
 The production React assets are embedded in the Go binary: **no Node server,
 Electron, external fonts, or runtime package downloads**. JavaScript and CSS are
-about **80 KB combined over gzip**. The server listens only on `127.0.0.1`, keeps
+about **83 KB combined over gzip**. The server listens only on `127.0.0.1`, keeps
 reports in memory, and defaults to offline checks. App Store Connect requests
 require explicitly enabling the optional online check and existing API credentials.
 
@@ -115,7 +119,10 @@ flowchart LR
     Runner --> Source["Source and privacy scanners"]
     Runner --> Shots["Screenshot checks and local Tesseract"]
     Runner --> Purchases["Purchase catalog comparison"]
-    Runner --> Manual["Manual checks stay unverified"]
+    Runner --> Ready["Release artifact and bound acceptance evidence"]
+    Runner --> History["Retest prior rejection prevention checks"]
+    History <--> Private["Private local history outside the repo"]
+    Runner --> Manual["Missing human evidence stays unverified"]
     Runner -.->|"Explicit online opt-in"| Apple["App Store Connect and listing URLs"]
     Runner --> Results["Evidence, confidence, and coverage"]
     Results --> Server
@@ -146,7 +153,8 @@ sequenceDiagram
 
 Core source checks always run. Feature selections add checks; they do not suppress
 code patterns that could reveal an undeclared feature. Excluded areas are recorded
-as not selected, while missing evidence and manual checks remain unverified.
+as not selected. Missing evidence and human checks without valid attestations remain
+unverified.
 
 [Architecture, module map, and data boundaries](docs/architecture.md)
 
@@ -190,6 +198,35 @@ the UI. Updating the tool is not proof that every rule matches Apple's latest
 policy. [Policy maintenance and freshness details](docs/guideline-maintenance.md)
 
 ## What's added
+
+### Release readiness and rejection prevention
+
+The prior reusable checklist is now part of the UI and CLI: candidate identity,
+extension versions, release packaging, macOS signature/profile inspection, local
+metadata, and 15 conditional human acceptance gates. Features include purchase
+and subscription lifecycle, accounts, moderation, content rights, production sync,
+and safety. Add custom gates for app-specific regression checks.
+
+```sh
+greenlight readiness --artifact /path/to/Release.xcarchive \
+  --metadata /path/to/release.json --purchases --subscriptions --format json
+greenlight history --project /path/to/app list
+```
+
+Human evidence must match the current artifact/input/selection/ruleset binding,
+include a reviewer and evidence-file hash, and be no more than seven days old.
+These are recorded attestations; Greenlight does not independently perform the
+human tests or turn a static failure into a pass.
+
+Use **Rejection history** to record actual Apple rejections or internal findings,
+root causes, fixes, and prevention steps. Linked rules are rechecked on every
+selected audit, including for resolved records. Missing/skipped checks stay
+unverified. Saved history is private local data by default; exports may include
+issue summaries and prevention steps.
+
+[Checklist crosswalk](docs/checklist-crosswalk.md) ·
+[Readiness inputs and evidence](docs/release-readiness.md) ·
+[Rejection history and storage](docs/rejection-history.md)
 
 ### Screenshot auditing
 

@@ -19,8 +19,10 @@ import (
 	"github.com/RandyVentures/greenlight/internal/audit"
 	"github.com/RandyVentures/greenlight/internal/checks"
 	"github.com/RandyVentures/greenlight/internal/config"
+	"github.com/RandyVentures/greenlight/internal/history"
 	"github.com/RandyVentures/greenlight/internal/preflight"
 	"github.com/RandyVentures/greenlight/internal/purchases"
+	"github.com/RandyVentures/greenlight/internal/readiness"
 	"github.com/RandyVentures/greenlight/internal/screenshots"
 )
 
@@ -36,15 +38,18 @@ type Preview struct {
 	Height int    `json:"height"`
 }
 type Job struct {
-	ID          string        `json:"id"`
-	Status      string        `json:"status"`
-	Steps       []Step        `json:"steps"`
-	Rows        []Row         `json:"rows"`
-	Images      []Preview     `json:"images"`
-	Summary     audit.Summary `json:"summary"`
-	Limitations []string      `json:"limitations"`
-	ElapsedMS   int64         `json:"elapsed_ms"`
-	Started     time.Time     `json:"started"`
+	ID             string        `json:"id"`
+	Status         string        `json:"status"`
+	Steps          []Step        `json:"steps"`
+	Rows           []Row         `json:"rows"`
+	Images         []Preview     `json:"images"`
+	Summary        audit.Summary `json:"summary"`
+	Limitations    []string      `json:"limitations"`
+	ElapsedMS      int64         `json:"elapsed_ms"`
+	Started        time.Time     `json:"started"`
+	ReleaseBinding string        `json:"release_binding,omitempty"`
+	Ruleset        string        `json:"ruleset,omitempty"`
+	ArtifactSHA256 string        `json:"artifact_sha256,omitempty"`
 }
 
 func (s *Server) start(w http.ResponseWriter, r *http.Request) {
@@ -58,6 +63,13 @@ func (s *Server) start(w http.ResponseWriter, r *http.Request) {
 	}
 	// Resolve every supplied path before accepting work, not just the main folder.
 	paths := []*string{&selection.Project}
+	if selection.Readiness {
+		for _, p := range []*string{&selection.Artifact, &selection.ReleaseMetadata, &selection.ReleaseEvidence} {
+			if *p != "" {
+				paths = append(paths, p)
+			}
+		}
+	}
 	if selection.Screenshots {
 		paths = append(paths, &selection.ScreenshotPath)
 	}
@@ -163,7 +175,20 @@ func (s *Server) appendReport(id, group string, report *audit.Report) {
 	defer s.mu.Unlock()
 	j := s.jobs[id]
 	for _, c := range report.Checks {
-		j.Rows = append(j.Rows, Row{Check: c, Group: group, Title: strings.ReplaceAll(c.ID, "-", " ")})
+		title := strings.ReplaceAll(c.ID, "-", " ")
+		if strings.HasPrefix(c.ID, "history.") {
+			title = "Previous issue: " + strings.SplitN(c.Evidence, " Prevention: ", 2)[0]
+		}
+		for _, gate := range readiness.Gates {
+			if c.ID == "human."+gate.ID {
+				title = gate.Title
+				break
+			}
+		}
+		if strings.HasPrefix(c.ID, "human.custom.") {
+			title = "App-specific review: " + strings.TrimPrefix(c.ID, "human.custom.")
+		}
+		j.Rows = append(j.Rows, Row{Check: c, Group: group, Title: title})
 	}
 	j.Limitations = append(j.Limitations, report.Limitations...)
 }
@@ -211,6 +236,20 @@ func (s *Server) run(id string, selection Selection) {
 				s.manual(id, step.ID, "Tracking consent & disclosures", "Verify consent appears before tracking begins and the privacy declarations match actual SDK behavior.")
 			case "asc":
 				err = s.runASC(ctx, id, selection)
+			case "readiness":
+				err = s.runReadiness(id, selection)
+			case "history":
+				records, e := s.history.List(selection.Project)
+				err = e
+				if e == nil {
+					s.mu.Lock()
+					var current []audit.Check
+					for _, row := range s.jobs[id].Rows {
+						current = append(current, row.Check)
+					}
+					s.mu.Unlock()
+					s.appendReport(id, "history", history.Check(records, current))
+				}
 			}
 		}
 		if err != nil {
@@ -370,7 +409,9 @@ func (s *Server) runLocalization(id string, selection Selection) {
 		r.Checks = append(r.Checks, c)
 	}
 	s.appendReport(id, "localization", r)
-	s.manual(id, "localization", "Translation review", "Verify translated metadata, screenshots, and purchase copy agree. Folder coverage does not verify translation accuracy.")
+	if !selection.Readiness {
+		s.manual(id, "localization", "Translation review", "Verify translated metadata, screenshots, and purchase copy agree. Folder coverage does not verify translation accuracy.")
+	}
 }
 
 func (s *Server) runASC(ctx context.Context, id string, selection Selection) error {

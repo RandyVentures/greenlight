@@ -15,9 +15,11 @@ import (
 func init() {
 	var port int
 	var noOpen bool
+	var stateDir string
 	cmd := &cobra.Command{Use: "ui [workspace]", Short: "Open the lightweight local React audit workspace", Args: cobra.MaximumNArgs(1)}
 	cmd.Flags().IntVar(&port, "port", 0, "loopback port (0 chooses an available port)")
 	cmd.Flags().BoolVar(&noOpen, "no-open", false, "print the local URL without opening a browser")
+	cmd.Flags().StringVar(&stateDir, "state-dir", "", "private rejection history directory (defaults to OS user config)")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		root := "."
 		if len(args) > 0 {
@@ -28,6 +30,11 @@ func init() {
 		s, err := localui.New(ctx, root)
 		if err != nil {
 			return err
+		}
+		if stateDir != "" {
+			if err := s.SetHistoryDir(stateDir); err != nil {
+				return err
+			}
 		}
 		return s.Serve(port, func(url string) {
 			fmt.Fprintf(cmd.OutOrStdout(), "\n  Greenlight · local workspace\n  %s\n\n  Press Ctrl+C to stop. Reports stay in memory until you export them.\n", url)

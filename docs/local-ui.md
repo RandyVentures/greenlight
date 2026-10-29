@@ -41,18 +41,34 @@ than suppressing code patterns that might reveal an undeclared feature.
 
 - **Automated:** source/configuration inspection, screenshot OCR, purchase catalogs.
 - **Automated + manual:** requested locale folders plus translation review.
-- **Manual:** account flows and tracking consent timing are listed as unverified.
+- **Human acceptance:** device, privacy, submission, business, and conditional feature gates require current bound evidence; missing evidence stays unverified.
+- **Past rejections:** retest linked current rules and preserve prevention reminders.
 - **Online · opt-in:** read the exact ASC version/build using a saved API key.
 
 Selecting “No in-app purchases” excludes purchase catalog comparison; it does not
-report purchases as tested or passed. Manual checks stay unverified, and required
-missing evidence makes coverage incomplete. Source-pattern findings are heuristic
+report purchases as tested or passed. Manual checks without valid bound human
+evidence stay unverified, and required missing evidence makes coverage incomplete. Source-pattern findings are heuristic
 and need review. Concrete catalog/dimension mismatches appear as blockers.
 
 App Store Connect checks make outbound requests only after their toggle is enabled
 and an audit is started. They may also check URLs in your store metadata. Configure
 the saved API key with `greenlight auth setup`; the key never enters the browser.
 The local UI cannot create credentials, change store records, or submit an app.
+
+## Release evidence and rejection history
+
+Leave **Release acceptance checklist** enabled to include the prior 15-gate
+checklist. Select a `.app`, `.xcarchive`, or `.ipa` artifact, local release metadata,
+and optional acceptance evidence. Additional feature toggles select conditional
+gates. The report includes the binding needed to record actual human acceptance;
+changed candidates, inputs, or selections invalidate it. See [readiness inputs,
+custom gates, and evidence](release-readiness.md).
+
+Open **Rejection history** to save an actual Apple rejection or an internal finding,
+its cause, fix, and prevention steps. Link a repeat rule or custom acceptance gate.
+**Recheck past rejections** adds current retests, even for resolved records. Skipped
+or missing linked evidence remains unverified. History persists outside app repos
+by default; [storage and CLI details](rejection-history.md).
 
 ## Results and export
 
@@ -69,8 +85,9 @@ review them before sharing. Exported HTML shows the server's local timezone in i
 timestamp. Neither format predicts Apple's review outcome.
 
 One audit runs at a time. The latest eight reports remain in process memory until
-the server exits. Inputs and reports are not saved to application storage. Only a
-random local session credential is stored in the current browser tab's session
+the server exits. Inputs and reports are not saved to application storage. Explicitly
+saved rejection records persist in the OS configuration directory; history findings
+in exports include summaries and prevention steps. A random local session credential is stored in the current browser tab's session
 storage so reloading continues to work. The printed URL puts that credential in
 the fragment; the app removes it from the address bar after loading.
 

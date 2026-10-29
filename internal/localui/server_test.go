@@ -237,3 +237,79 @@ func TestCompressedAssetsAndEscapedHTMLExport(t *testing.T) {
 		t.Fatalf("unsafe or invalid HTML export: %s", w.Body)
 	}
 }
+
+func TestRejectionHistoryPersistsAndRetestsAfterResolution(t *testing.T) {
+	s := testServer(t)
+	state := t.TempDir()
+	if err := s.SetHistoryDir(state); err != nil {
+		t.Fatal(err)
+	}
+	meta := filepath.Join(s.root, "release.json")
+	write := func(notes string) {
+		b, _ := json.Marshal(map[string]string{"name": "Synthetic", "description": "Fixture", "review_notes": notes, "privacy_url": "https://example.test/privacy", "support_url": "https://example.test/support"})
+		if err := os.WriteFile(meta, b, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("")
+	w := request(t, s, "POST", "/api/history", map[string]any{"project": ".", "action": "add", "record": map[string]string{"origin": "internal_preflight", "summary": "Missing review notes", "prevention": "Check notes in the current release metadata", "rule_id": "metadata-review-notes"}})
+	if w.Code != 200 {
+		t.Fatalf("record rejected: %s", w.Body)
+	}
+	var records []struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &records); err != nil || len(records) != 1 {
+		t.Fatal("record not returned")
+	}
+	w = request(t, s, "POST", "/api/history", map[string]any{"project": ".", "action": "resolve", "id": records[0].ID, "resolution": "Added reviewer instructions"})
+	if w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	run := func() Job {
+		w := request(t, s, "POST", "/api/run", Selection{Project: ".", Platform: "ios", Payments: "none", Readiness: true, ReleaseMetadata: "release.json", History: true})
+		if w.Code != 202 {
+			t.Fatalf("audit rejected: %s", w.Body)
+		}
+		var start map[string]string
+		json.Unmarshal(w.Body.Bytes(), &start)
+		for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); {
+			var j Job
+			json.Unmarshal(request(t, s, "GET", "/api/jobs/"+start["id"], nil).Body.Bytes(), &j)
+			if j.Status == "complete" {
+				return j
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		t.Fatal("audit timeout")
+		return Job{}
+	}
+	j := run()
+	seen := false
+	for _, row := range j.Rows {
+		if row.Group == "history" {
+			seen = true
+			if row.Status != "suspected" {
+				t.Fatalf("resolved issue suppressed current failure: %+v", row)
+			}
+		}
+	}
+	if !seen {
+		t.Fatal("history retest absent")
+	}
+	write("Synthetic reviewer walkthrough")
+	j = run()
+	for _, row := range j.Rows {
+		if row.Group == "history" && row.Status != "passed" {
+			t.Fatalf("fixed metadata was not rechecked: %+v", row)
+		}
+	}
+	s2, err := New(context.Background(), s.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s2.SetHistoryDir(state)
+	if w := request(t, s2, "GET", "/api/history?project=.", nil); !strings.Contains(w.Body.String(), "Missing review notes") {
+		t.Fatal("history lost after server restart")
+	}
+}

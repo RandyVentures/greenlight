@@ -9,26 +9,36 @@ import (
 )
 
 type Selection struct {
-	Project         string              `json:"project"`
-	Platform        string              `json:"platform"`
-	Payments        string              `json:"payments"`
-	Accounts        bool                `json:"accounts"`
-	Tracking        bool                `json:"tracking"`
-	Localized       bool                `json:"localized"`
-	Locales         []string            `json:"locales"`
-	Screenshots     bool                `json:"screenshots"`
-	ScreenshotPath  string              `json:"screenshot_path"`
-	DisplayType     string              `json:"display_type"`
-	Language        string              `json:"language"`
-	Products        []purchases.Product `json:"products"`
-	SourceFiles     []string            `json:"source_files"`
-	StoreKitFile    string              `json:"storekit_file"`
-	ASCProductsFile string              `json:"asc_products_file"`
-	RevenueCatFile  string              `json:"revenuecat_file"`
-	LiveASC         bool                `json:"live_asc"`
-	AppID           string              `json:"app_id"`
-	VersionID       string              `json:"version_id"`
-	Build           string              `json:"build"`
+	Project           string              `json:"project"`
+	Platform          string              `json:"platform"`
+	Payments          string              `json:"payments"`
+	Accounts          bool                `json:"accounts"`
+	Tracking          bool                `json:"tracking"`
+	Localized         bool                `json:"localized"`
+	Locales           []string            `json:"locales"`
+	Screenshots       bool                `json:"screenshots"`
+	ScreenshotPath    string              `json:"screenshot_path"`
+	DisplayType       string              `json:"display_type"`
+	Language          string              `json:"language"`
+	Products          []purchases.Product `json:"products"`
+	SourceFiles       []string            `json:"source_files"`
+	StoreKitFile      string              `json:"storekit_file"`
+	ASCProductsFile   string              `json:"asc_products_file"`
+	RevenueCatFile    string              `json:"revenuecat_file"`
+	LiveASC           bool                `json:"live_asc"`
+	AppID             string              `json:"app_id"`
+	VersionID         string              `json:"version_id"`
+	Build             string              `json:"build"`
+	Readiness         bool                `json:"readiness"`
+	Artifact          string              `json:"artifact"`
+	ReleaseMetadata   string              `json:"release_metadata"`
+	ReleaseEvidence   string              `json:"release_evidence"`
+	Subscriptions     bool                `json:"subscriptions"`
+	PublicContent     bool                `json:"public_content"`
+	ThirdPartyContent bool                `json:"third_party_content"`
+	CloudSync         bool                `json:"cloud_sync"`
+	SafetySensitive   bool                `json:"safety_sensitive"`
+	History           bool                `json:"history"`
 }
 
 type Step struct {
@@ -59,14 +69,20 @@ func Plan(s Selection) ([]Step, error) {
 	if s.Localized {
 		steps = append(steps, Step{ID: "localization", Label: "Localization coverage", Detail: "Requested locale folders and manual translation review.", Mode: "mixed", State: "queued"})
 	}
-	if s.Accounts {
+	if s.Accounts && !s.Readiness {
 		steps = append(steps, Step{ID: "accounts", Label: "Account flows", Detail: "Manual verification of sign-in and account deletion.", Mode: "manual", State: "queued"})
 	}
-	if s.Tracking {
+	if s.Tracking && !s.Readiness {
 		steps = append(steps, Step{ID: "tracking", Label: "Tracking consent", Detail: "Manual verification of consent timing and disclosures.", Mode: "manual", State: "queued"})
 	}
 	if s.LiveASC {
 		steps = append(steps, Step{ID: "asc", Label: "App Store Connect", Detail: "Read the selected version and attached build using saved API credentials.", Mode: "online", State: "queued"})
+	}
+	if s.Readiness {
+		steps = append(steps, Step{ID: "readiness", Label: "Release acceptance", Detail: "Candidate packaging, listing evidence, and build-bound human acceptance gates.", Mode: "mixed", State: "queued"})
+	}
+	if s.History {
+		steps = append(steps, Step{ID: "history", Label: "Past rejections", Detail: "Retest linked checks and keep manual prevention reminders visible.", Mode: "mixed", State: "queued"})
 	}
 	return steps, nil
 }

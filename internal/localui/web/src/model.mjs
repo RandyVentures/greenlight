@@ -19,6 +19,16 @@ export const initial = {
   app_id: '',
   version_id: '',
   build: '',
+  readiness: true,
+  artifact: '',
+  release_metadata: '',
+  release_evidence: '',
+  subscriptions: false,
+  public_content: false,
+  third_party_content: false,
+  cloud_sync: false,
+  safety_sensitive: false,
+  history: true,
 };
 
 export const labels = {
@@ -29,6 +39,8 @@ export const labels = {
   accounts: 'Account flows',
   tracking: 'Tracking consent',
   asc: 'App Store Connect',
+  readiness: 'Release acceptance',
+  history: 'Past rejections',
 };
 
 export function counts(rows = []) {

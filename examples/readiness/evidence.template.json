@@ -1,0 +1,14 @@
+{
+  "ruleset": "REPLACE_WITH_CURRENT_REPORT_RULESET",
+  "binding": "REPLACE_WITH_CURRENT_REPORT_BINDING",
+  "checks": {
+    "device": {
+      "status": "unverified",
+      "reviewer": "",
+      "checked_at": "2000-01-01T00:00:00Z",
+      "notes": "Template only. Perform the device acceptance work, record real results, and add the other applicable gates.",
+      "evidence_file": "device-notes.md",
+      "evidence_sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+    }
+  }
+}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useId } from 'react';
 import { createRoot } from 'react-dom/client';
 import { initial, labels, counts, validate, verdict, sessionToken, checkTitle } from './model.mjs';
 import './style.css';
+import { HistoryDialog } from './history.jsx';
 
 let token = '';
 try {
@@ -513,6 +514,24 @@ function Results({ job, onBack }) {
           </div>
         )}
       </div>
+      {job.release_binding && (
+        <details className="scope">
+          <summary>
+            Release evidence binding <Icon name="plus" size={16} />
+          </summary>
+          <p className="hint">
+            Use this binding when recording actual manual acceptance evidence for this candidate and
+            these inputs.
+          </p>
+          <code className="binding">
+            Ruleset: {job.ruleset}
+            <br />
+            Binding: {job.release_binding}
+            <br />
+            Artifact: {job.artifact_sha256 || 'Not supplied — manual acceptance cannot be cleared'}
+          </code>
+        </details>
+      )}
       <details className="scope">
         <summary>
           What this audit covers <Icon name="plus" size={16} />
@@ -540,6 +559,7 @@ function App() {
   const [job, setJob] = useState(null);
   const [busy, setBusy] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const update = (key, value) => setSelection((s) => ({ ...s, [key]: value }));
   useEffect(() => {
     api('info')
@@ -662,6 +682,13 @@ function App() {
           greenlight<span className="fork-tag">WORKSPACE</span>
         </a>
         <div className="topbar-right">
+          <button
+            className="text-button history-toggle"
+            onClick={() => setShowHistory(true)}
+            disabled={busy}
+          >
+            Rejection history
+          </button>
           <span className="local-status">
             <i />
             Local session
@@ -801,6 +828,52 @@ function App() {
                     onChange={(v) => update('localized', v)}
                   />
                 </div>
+                <details className="advanced extra-features">
+                  <summary>
+                    Additional release features{' '}
+                    <span>
+                      Conditional acceptance gates <Icon name="plus" size={16} />
+                    </span>
+                  </summary>
+                  <div className="advanced-content">
+                    {[
+                      [
+                        'subscriptions',
+                        'Auto-renewing subscriptions',
+                        'Renewal, expiry, offer eligibility, and disclosures',
+                      ],
+                      [
+                        'public_content',
+                        'Public user content',
+                        'Moderation, reporting, and blocking',
+                      ],
+                      [
+                        'third_party_content',
+                        'Third-party content or services',
+                        'Content licenses and service-use permissions',
+                      ],
+                      [
+                        'cloud_sync',
+                        'Cloud sync',
+                        'Production configuration and two-device recovery',
+                      ],
+                      [
+                        'safety_sensitive',
+                        'Safety-sensitive features',
+                        'Safety claims, limitations, and core flows',
+                      ],
+                    ].map(([key, label, detail]) => (
+                      <Toggle
+                        key={key}
+                        label={label}
+                        detail={detail}
+                        icon="shield"
+                        checked={selection[key]}
+                        onChange={(v) => update(key, v)}
+                      />
+                    ))}
+                  </div>
+                </details>
                 {selection.localized && (
                   <label className="field reveal">
                     <span className="field-label">Expected locales</span>
@@ -829,6 +902,50 @@ function App() {
                   <h2>The evidence</h2>
                   <span className="section-aside">READ ONLY</span>
                 </div>
+                <Toggle
+                  label="Release acceptance checklist"
+                  detail="Our full checklist, with candidate-bound human evidence"
+                  icon="shield"
+                  checked={selection.readiness}
+                  onChange={(v) => update('readiness', v)}
+                />
+                {selection.readiness && (
+                  <div className="conditional reveal">
+                    <Field
+                      label="Release artifact"
+                      value={selection.artifact}
+                      onChange={(v) => update('artifact', v)}
+                      onBrowse={() => browse('artifact')}
+                      placeholder="Choose .app, .xcarchive, or .ipa"
+                      optional
+                    />
+                    <Field
+                      label="Release metadata JSON"
+                      value={selection.release_metadata}
+                      onChange={(v) => update('release_metadata', v)}
+                      onBrowse={() => browse('release_metadata', 'file')}
+                      optional
+                    />
+                    <Field
+                      label="Human acceptance evidence JSON"
+                      value={selection.release_evidence}
+                      onChange={(v) => update('release_evidence', v)}
+                      onBrowse={() => browse('release_evidence', 'file')}
+                      optional
+                    />
+                    <p className="hint">
+                      Missing evidence stays unverified. New candidate bytes or input changes
+                      invalidate old attestations. The JSON report includes the binding to use.
+                    </p>
+                  </div>
+                )}
+                <Toggle
+                  label="Recheck past rejections"
+                  detail="Private project history; resolved records are still retested"
+                  icon="eye"
+                  checked={selection.history}
+                  onChange={(v) => update('history', v)}
+                />
                 <Toggle
                   label="Audit screenshots"
                   detail="Size checks and local text recognition"
@@ -1066,6 +1183,13 @@ function App() {
             <Plan steps={steps} busy={busy} ready={!!info} onRun={run} />
           </div>
         </main>
+      )}
+      {showHistory && (
+        <HistoryDialog
+          project={selection.project}
+          api={api}
+          onClose={() => setShowHistory(false)}
+        />
       )}
       {picker && (
         <Picker

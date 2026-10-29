@@ -1310,3 +1310,101 @@
     }
   }
 }
+
+/* Private history is a compact editor, using the existing workspace surfaces. */
+textarea {
+  font: inherit;
+  min-height: 78px;
+  resize: vertical;
+  width: 100%;
+  border: 1px solid #d7ddcf;
+  border-radius: 7px;
+  background: white;
+  padding: 12px;
+  color: var(--ink);
+}
+textarea:focus-visible {
+  outline: 2px solid #659d46;
+  outline-offset: 1px;
+}
+.history-dialog {
+  width: 720px;
+  max-height: calc(100svh - 40px);
+}
+.history-intro {
+  margin: 16px 0;
+}
+.history-scroll {
+  max-height: calc(100svh - 215px);
+  overflow-y: auto;
+  padding-right: 8px;
+}
+.history-scroll h3 {
+  margin: 20px 0;
+}
+.history-records {
+  border-top: 1px solid var(--line);
+  margin-top: 25px;
+  padding-top: 8px;
+}
+.history-record {
+  padding: 22px 0;
+  border-bottom: 1px solid var(--line);
+}
+.history-record p {
+  font-size: 12px;
+  margin: 10px 0;
+  overflow-wrap: anywhere;
+}
+.history-record small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.history-record .mode {
+  color: #4f743b;
+}
+.resolve-row {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  margin-top: 20px;
+}
+.resolve-row .field {
+  flex: 1;
+  margin: 0;
+}
+.binding {
+  display: block;
+  font: 11px var(--mono);
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  margin-top: 15px;
+}
+.extra-features {
+  margin-top: 18px;
+}
+@media (max-width: 740px) {
+  .history-toggle {
+    font-size: 10px;
+  }
+  .github-link {
+    display: none;
+  }
+  .topbar-right {
+    gap: 12px;
+  }
+  .history-dialog {
+    padding: 18px;
+  }
+  .resolve-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .extra-features summary span {
+    max-width: 130px;
+    text-align: right;
+  }
+  .history-intro {
+    overflow-wrap: anywhere;
+  }
+}
